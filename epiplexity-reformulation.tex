@@ -1,0 +1,628 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+\title{Computational Information: A Generalization of Shannon Entropy}
+\author{Asvin G.}
+
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present a framework for information that generalizes Shannon entropy along two orthogonal axes:
+(1) restricting the class of distributions available to model the truth, and
+(2) assigning computational costs to models.
+Classical entropy emerges as a special case, but with an interesting twist: the log-sum inequality,
+which classically appears in proving subadditivity, is factored into the optimization step that
+identifies entropy as a minimum. This clarifies the structure of classical information theory
+and provides a natural generalization to computationally bounded observers.
+We then prove a master theorem for the resulting calculus: since cross-entropy is linear in the
+logarithm of the model, every log-linear method of combining programs yields an inequality of
+Shannon type, with all analytic content confined to a bound on a normalization constant.
+Subadditivity, the chain rule, Shearer's inequality and a computationally bounded data-processing
+inequality are instances. The exchange rate between model cost and prediction cost is kept explicit throughout as an
+amortization parameter, yielding a structure--noise Pareto frontier with sharp emergence
+thresholds.
+\end{abstract}
+
+This is an alternate interpretation of \cite{finzi2025}, from a different vantage point. The motivations are the same however: to define entropy from an observer-dependent point of view of bounded computational power. Of course, this requires giving a definition of an observer in the first place, which we propose. The framework also strictly generalizes the predictive $\mathcal V$-information of \cite{xu2020}, which is the cost-free case $K \equiv 0$; see Section~\ref{sec:epiplexity}. The set up is as follows.
+
+
+\section{Subjective entropy}
+
+We consider the question of trying to approximate a noisy function. Let $(X,\mu_X)$ be set of possible pasts and $Y$ the set of possible outcomes (both of which we assume to be discrete and finite for simplicity). Our target noisy function is $p: X \to \mathcal P(Y)$ where $p_x \coloneqq p(x)$ is a probability distribution on $Y$. 
+
+Our observer $\mathcal O$ will consist of a space of "programs" $u: X \to \mathcal P(Y)$ along with an associated cost function $K(u) \in \mathbb R_{\geq 0}$. The observer attempts to find the best approximation to $p$ by minimizing the "cost to describe $p$".
+
+Our main motivation comes from machine learning. For instance, a LLM provides such an example. We take $Y = \Sigma$ to be a finite alphabet (the tokens), $X = \Sigma^*$ to be finite words on $\Sigma$ and $p: \Sigma^* \to \mathcal P(\Sigma)$ to be the distribution on natural text. The transformer architecture with all parameters fixed then provides us with our observer $\mathcal L$ - a program $u \in \mathcal L$ corresponds to a specific choice of parameters (i.e., a trained network) while $K(u)$ can be taken to be the Kolmogorov complexity of $u$ or even the cost to find $u$ through gradient descent.
+
+Some care is needed with units: the cost $K(u)$ is measured in bits, while the cross-entropy below is measured in bits \emph{per sample}, and the two are commensurable only relative to a choice of how many samples the program will be amortized over. If we describe a dataset of $n$ i.i.d.\ samples by first transmitting a program $u$ and then encoding each sample with the code it defines, the total cost is $K(u) + n H(p\|u)$; the per-sample cost is $\lambda K(u) + H(p\|u)$ with $\lambda = 1/n$. We build this exchange rate into the definition.
+
+\begin{definition}[Subjective entropy]
+The subjective entropy of $p$ with respect to $\mathcal O$, at amortization $\lambda > 0$, is defined by
+\[ \mathbb M^\lambda_\mathcal O(p) \coloneqq \min_u \{\lambda K(u) + H(p||u)\}  \]
+where $H(p||u) = \mathbb E_{x \sim \mu_X} H(p_x \,\|\, u_x) = \mathbb E_{x \sim \mu_X}\mathbb{E}_{y \sim p_x}[-\log u_x(y)]$ is the cross-entropy. We write $\mathbb M_\mathcal O \coloneqq \mathbb M^1_\mathcal O$.
+
+\end{definition}
+
+The cross-entropy has a coding interpretation: $H(p_x \,\|\, u_x)$ is the expected number of bits
+to encode a sample from $p_x$ using a code optimized for $u_x$. Thus $\mathbb{M}^\lambda_\mathcal{O}(p)$
+is the minimum per-sample description length at amortization horizon $n = 1/\lambda$: program cost, amortized, plus expected encoding cost.
+
+\begin{remark}[Convention]
+Since $\lambda K$ is itself a cost function, nothing is lost by working at $\lambda = 1$: we have $\mathbb M^\lambda_{(\mathcal O, K)} = \mathbb M_{(\mathcal O, \lambda K)}$, so every statement below holds for all $\lambda$ upon replacing $K \mapsto \lambda K$ and every overhead constant $c \mapsto \lambda c$. We therefore write proofs at $\lambda = 1$, and keep $\lambda$ explicit where its interpretation --- the amortization horizon --- is itself the point, as in Section~\ref{sec:amortization}.
+\end{remark}
+
+At the optimum $u^*$, we decompose:
+\begin{align}
+\mathbf{S}_\mathcal{O}(p) &= K(u^*) && \text{(structural information---cost of the program)} \\
+\mathbf{H}_\mathcal{O}(p) &= H(p \,\|\, u^*) && \text{(residual entropy---encoding cost given program)}
+\end{align}
+
+
+If our noisy function is noiseless, i.e., $p_x$ is always a point mass, then the residual entropy is simply a measure of the accuracy of our approximation. If we take $\mathcal O$ to be the set of programs under some classic resource bound (for instance polynomial time programs), then we are in the land of classical complexity theory.
+
+On the other hand, if we take $X = \{*\}$ to be a singleton, then our programs are simply distributions. If moreover, we assume that $K \equiv 0$, then we obtain a generalization of Shannon entropy.
+
+\begin{definition}[Shannon Observer]
+    The Shannon observer $\mathcal S$ is defined by $X = \{*\}, K \equiv 0$ and $\mathcal S = \mathcal P(Y)$ is the set of \textit{all} distributions on $Y$. In this case,
+    \[ \mathbb M_\mathcal S(p) = \min_{u \in P(Y)} H(p||u) = \min_u H(p) + D_{KL}(p||u) = H(p)\]
+since $D_{KL}(p||u) \geq 0$ with equality precisely when $u = p$.
+\end{definition}
+
+By the same argument, we see that $H_\mathcal O(p) \geq H(p)$ for any observer $\mathcal O$.
+
+This connection to Shannon entropy is the place where the convexity of the logarithm is crucial. As we will see, subjective entropy satisfies similar properties to Shannon entropy, but the proofs are essentially "free".
+
+To illustrate the idea, let us look at the \textit{uniform observer} $\mathcal U = \{\text{ uniform distribution on } Y\}$ with $K \equiv 0$ and $X = \{*\}$ again. For any distribution $p$, we have
+\[ \mathbb M_\mathcal U(p) = \mathbb E_p[-\log(1/|Y|)] = \log|Y|.\]
+This observer cannot exploit any structure in $p$. 
+
+\subsection*{Autoregressive Models and the Shannon Limit}
+
+The most natural setting for our framework is autoregressive modeling, where the idealizations required to recover Shannon entropy become explicit.
+
+\begin{definition}[Autoregressive Model]
+An \emph{autoregressive model} over alphabet $\Sigma$ is a program $u: X \to \mathcal{P}(Y)$ where $X = \Sigma^*$ (histories) and $Y = \Sigma$ (next token). Given history $x = (x_1, \ldots, x_{n-1})$, the program outputs a distribution $u_x \in \mathcal{P}(\Sigma)$ over the next symbol. This induces a joint distribution on sequences:
+\[ p_u(x_1, \ldots, x_n) = \prod_{i=1}^{n} u_{x_{<i}}(x_i) \]
+\end{definition}
+
+In our framework, an autoregressive model is precisely a program $u: X \to \mathcal{P}(Y)$. The observer $\mathcal{O}$ specifies which programs are available and their costs.
+
+\begin{proposition}[Subjective Entropy of Next-Token Prediction]
+Let $p: X \to \mathcal{P}(Y)$ be the true next-token distribution given history (where $X = \Sigma^*$, $Y = \Sigma$). Then:
+\[ \mathbb{M}_\mathcal{O}(p) = \min_{u \in \mathcal{O}} \left\{ K(u) + \mathbb{E}_{x \sim \mu_X}\mathbb{E}_{y \sim p_x}[-\log u_x(y)] \right\} \]
+The second term is exactly the per-token cross-entropy loss familiar from language modeling.
+\end{proposition}
+
+Classical Shannon entropy emerges under three idealizations:
+
+\begin{enumerate}
+    \item \textbf{All conditionals available:} $\mathcal{O} = \{$all functions $X \to \mathcal{P}(Y)\}$
+    \item \textbf{Zero model cost:} $K \equiv 0$
+    \item \textbf{Ergodic/stationary limit:} The entropy rate exists
+\end{enumerate}
+
+\begin{theorem}[Shannon Entropy as a Limiting Case]
+Under idealizations (1) and (2), for each position $n$:
+\[ \mathbb{M}_\mathcal{S}(p_n | x_{<n}) = H(Y_n | X_{<n}) \]
+where $\mathcal{S}$ denotes the Shannon observer. Under all three idealizations, for a stationary ergodic source:
+\[ \lim_{n \to \infty} \frac{1}{n} \sum_{i=1}^{n} \mathbb{M}_\mathcal{S}(p_i | x_{<i}) = H(Y) \]
+where $H(Y)$ is the Shannon entropy rate.
+\end{theorem}
+
+\begin{proof}
+Under idealizations (1) and (2), the optimal program at position $n$ is $u^*_x = p_x$, the true conditional distribution. The subjective entropy becomes:
+\[ \mathbb{M}_\mathcal{S}(p_n | x_{<n}) = 0 + H(p_n \,\|\, p_n) = H(Y_n | X_{<n}) \]
+The entropy rate formula follows from the standard ergodic theorem.
+\end{proof}
+
+\begin{remark}[The Three Gaps from Shannon]
+Each idealization, when relaxed, creates a gap from classical entropy:
+\begin{itemize}
+    \item \textbf{Restricted programs:} If $\mathcal{O} \subsetneq \{$all conditionals$\}$, we have $\mathbb{M}_\mathcal{O}(p) > H(p)$. For instance, if $\mathcal{O}$ contains only $k$-th order Markov models, the gap measures how much structure in $p$ exceeds $k$-th order dependencies.
+
+    \item \textbf{Positive program cost:} If $K(u) > 0$, there is a trade-off between model complexity and fit. This is the MDL (Minimum Description Length) perspective: the optimal $u^*$ may \emph{not} equal $p$, instead preferring a simpler program that accepts higher cross-entropy.
+
+    \item \textbf{Finite sequences:} Before the asymptotic limit, there are edge effects. The first few tokens have less history, making prediction harder.
+\end{itemize}
+\end{remark}
+
+\begin{remark}[Connection to Language Modeling]
+Modern language models (transformers) provide a concrete instance with:
+\begin{itemize}
+    \item $\mathcal{O} = \{$transformer architectures with $\leq N$ parameters$\}$
+    \item $K(u) = $ training cost or parameter count (in various metrics)
+\end{itemize}
+The gap $\mathbb{M}_\mathcal{O}(p_{\text{natural language}}) - H(p_{\text{natural language}})$ measures how far current architectures are from the ``true'' entropy of natural language---a quantity that Shannon entropy assumes is achievable for free.
+\end{remark}
+
+
+
+\section{Amortization: the price of structure}\label{sec:amortization}
+
+The amortization parameter $\lambda$ is not a nuisance constant to be normalized away; it is the coordinate along which the framework's two currencies --- bits of structure and bits of residual noise --- trade against each other. Sweeping it traces a frontier, and the frontier shows structure that no single value of $\lambda$ can.
+
+\begin{proposition}[Structure--noise frontier]\label{prop:frontier}
+Write $S(\lambda) = K(u^*_\lambda)$ and $H(\lambda) = H(p \| u^*_\lambda)$ at an optimizer $u^*_\lambda$. Then $S(\lambda)$ is nonincreasing and $H(\lambda)$ is nondecreasing in $\lambda$, and $\mathbb M^\lambda_\mathcal{O}(p) = \lambda S(\lambda) + H(\lambda)$ is concave in $\lambda$. The curve $\lambda \mapsto (S(\lambda), H(\lambda))$ is the Pareto frontier of the region $\{(K(u), H(p\|u)) : u \in \mathcal O\}$, and $-\lambda$ is the slope of its supporting line.
+\end{proposition}
+
+\begin{proof}
+Concavity: $\mathbb M^\lambda$ is a minimum of affine functions of $\lambda$. Monotonicity: for $\lambda_1 < \lambda_2$, optimality gives $\lambda_1 K_1 + H_1 \leq \lambda_1 K_2 + H_2$ and $\lambda_2 K_2 + H_2 \leq \lambda_2 K_1 + H_1$; adding the two, $(\lambda_1 - \lambda_2)(K_1 - K_2) \leq 0$, so $K_1 \geq K_2$, and then $H_1 \leq H_2$ from the first inequality.
+\end{proof}
+
+The decomposition $\mathbf S_\mathcal{O} / \mathbf H_\mathcal{O}$ of Section 1 is one point on this frontier; the frontier itself is the refined invariant. Two limits orient it. As $\lambda \to 0$ (infinite amortization) structure becomes free, and for the Shannon observer $\mathbb M^\lambda_\mathcal{S}(p) \to H(p)$: \emph{Shannon entropy is the infinitely amortized subjective entropy of the unrestricted observer}. This unifies idealizations (2) and (3) of Section 1: zero model cost is not a separate assumption from the asymptotic limit --- it is the same assumption. As $\lambda \to \infty$ (a single sample) no structure is worth learning, and $\mathbb M^\lambda$ is governed by the cheapest available program, recovering the uniform-observer bound $\log|Y|$ when a uniform program is available at negligible cost.
+
+\begin{proposition}[Emergence threshold]\label{prop:threshold}
+Let $u_1, u_2 \in \mathcal O$ with $\Delta K = K(u_2) - K(u_1) > 0$ and $\Delta H = H(p\|u_1) - H(p\|u_2) > 0$. Then $u_2$ is preferred to $u_1$ precisely when $n > \Delta K / \Delta H$.
+\end{proposition}
+
+The proof is immediate, but the reading is not: as the amortization horizon $n$ grows, the optimizer walks down the frontier, acquiring pieces of structure in increasing order of their price-to-benefit ratio $\Delta K / \Delta H$. If the available structure is discrete --- separate mechanisms with separate costs --- the frontier has kinks and the walk has jumps: capabilities appear suddenly, at predictable data scales. The currency in which a piece of structure is priced is the number of samples needed to justify it.
+
+\begin{remark}[The missing third currency]
+$\mathbb M_\mathcal{O}$ prices the description of a program but not its execution. A fuller ledger is $\lambda K(u) + \mu T(u) + H(p\|u)$, with $T(u)$ the time to run $u$ and $\mu$ the price of computation per sample; the time-bounded observers $\mathcal O_T$ of \cite{finzi2025} are the hard-constraint version of this, with $\mu$ the shadow price of the constraint $T \leq T_{\max}$. The $(K, T)$ trade-off is familiar in mathematics: enriching a group presentation with derived relations increases its description length and shortens proofs, with the full multiplication table as one extreme. Theorems, on this accounting, are purchased amortization --- a one-time expenditure of $K$ that permanently lowers $T$.
+\end{remark}
+
+\section{Properties of subjective entropy}
+
+We now establish that $\mathbb{M}_\mathcal{O}$ satisfies the key properties of entropy
+(subadditivity, chain rule) in full generality. The proofs are remarkably simple---they
+just exhibit feasible solutions. The ``hard work'' (log inequalities) only appears when
+we specialize to the Shannon observer. In this section, we will want to vary the spaces $X,Y$, in particular to take products. For simplicity of notation, we consider the programs $u:X\to \mathcal P(Y)$ to be implicitly typed with source $X$ and target $Y$, and allow for the observer $\mathcal O$ to have programs $u: X\to \mathcal P(Y)$ with $X,Y$ varying.
+
+\begin{definition}[Product of Programs]
+For programs $u_i: X_i \to \mathcal P(Y_i)$, $i = 1,2$, we define $u_1 \otimes u_2: X_1\times X_2 \to \mathcal P(Y_1\times Y_2)$ by
+\[ (u_1\otimes u_2)_{(x_1,x_2)}(y_1,y_2) = u_{1,x_1}(y_1)u_{2,x_2}(y_2).\]
+\end{definition}
+
+\begin{definition}[Product-Closed Observer]
+An observer $\mathcal{O}$ is \emph{product-closed with overhead $c$} if for all $u_i: X_i \to \mathcal P(Y_i)$:
+\begin{enumerate}
+    \item $u_1 \otimes u_2 \in \mathcal{O}$
+    \item $K(u_1 \otimes u_2) \leq K(u_1) + K(u_2) + c$
+\end{enumerate}
+\end{definition}
+
+The Shannon observer is product-closed with $c = 0$.
+
+Conversely, given $p: X_1\times X_2 \to \mathcal P(Y_1\times Y_2)$, we define the marginals by
+\begin{definition}[Marginals]
+    We marginalize over the second variable by pushing forward $p_{x_1,x_2}$ along $Y_1\times Y_2 \to Y_2$ and integrating out the $x_2$. Explicitly,
+    \[p_1: X_1 \to \mathcal P(Y_1); p_{1,x_1}(y_1) = \mathbb E_{x_2 \in X_2}\sum_{y_2 \in Y_2}p_{x_1,x_2}(y_1,y_2)\]
+    and similarly for $p_2$.
+\end{definition}
+
+With these two definitions, we recover the classical sub-additivity of Shannon entropy for subjective entropy.
+
+\begin{theorem}[Subadditivity]\label{thm:subadditive}
+Let $\mathcal{O}$ be product-closed with overhead $c$. For any joint distribution $p: X_1\times X_2 \to \mathcal P(Y_1 \times Y_2)$ with marginals $p_1, p_2$:
+\begin{equation}
+\mathbb{M}_{\mathcal{O}}(p) \leq \mathbb{M}_{\mathcal{O}}(p_1) + \mathbb{M}_{\mathcal{O}}(p_2) + c
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Let $u^*_1, u^*_2$ be optimal programs for $p_1, p_2$. Consider the product program $u^*_1 \otimes u^*_2$.
+The key calculation uses only marginalization (no log inequalities):
+\begin{align}
+H(p \,\|\, u^*_1 \otimes u^*_2)
+&= \mathbb E_{x_1,x_2 \in X_1\times X_2}\mathbb{E}_{(y_1,y_2) \sim p}[-\log u^*_1(y_1) - \log u^*_2(y_2)] \\
+&= \mathbb E_{x_1 \in X_1}\mathbb{E}_{y_1 \sim p_1}[-\log u^*_{1,x_1}(y_1)] + \mathbb E_{x_2 \in X_2}\mathbb{E}_{y_2 \sim p_2}[-\log u^*_{2,x_2}(y_2)] \\
+&= H(p_1 \,\|\, u^*_1) + H(p_2 \,\|\, u^*_2)
+\end{align}
+The equalities all follow simply from the definitions of marginalization and product measures without using any specific properties of the $\log$ function. As a consequence,
+\begin{align}
+\mathbb{M}_{\mathcal{O}}(p)
+&\leq K(u^*_1 \otimes u^*_2) + H(p \,\|\, u^*_1 \otimes u^*_2) \\
+&\leq [K(u^*_1) + K(u^*_2) + c] + [H(p_1 \,\|\, u^*_1) + H(p_2 \,\|\, u^*_2)] \\
+&= \mathbb{M}_{\mathcal{O}}(p_1) + \mathbb{M}_{\mathcal{O}}(p_2) + c \qedhere
+\end{align}
+\end{proof}
+
+When we specialize to the Shannon observer, we recover classical subadditivity $H(p) \leq H(p_1) + H(p_2)$.
+
+When $\mathcal{O} = \mathcal{S}$ (so $K \equiv 0$, $c = 0$):
+\begin{equation}
+H(p) = \mathbb{M}_{\mathcal{S}}(p) \leq \mathbb{M}_{\mathcal{S}}(p_1) + \mathbb{M}_{\mathcal{S}}(p_2) = H(p_1) + H(p_2)
+\end{equation}
+
+Thus, our framework \emph{factors} the classical proof of subadditivity:
+\begin{enumerate}
+    \item \textbf{Structural step} (Theorem~\ref{thm:subadditive}): $\mathbb{M}(p) \leq \mathbb{M}(p_1) + \mathbb{M}(p_2)$---easy, no log inequalities
+    \item \textbf{Optimization step}: $\mathbb{M}_{\mathcal{S}}(p) = H(p)$---uses $D_{KL} \geq 0$
+\end{enumerate}
+
+The classical proof combines these steps, obscuring the factorization.
+
+Similarly, the chain rule holds in the general framework. The idea is that we can decompose the task of approximating $p$ into two steps: first approximate a ``summary statistic'' of $p$, then approximate $p$ given that statistic.
+
+\subsection*{Setup for the Chain Rule}
+
+Let $p: X \to \mathcal{P}(Y)$ be our target and $\pi: Y \to Z$ a projection (surjective map) extracting some information from $Y$. We think of $Z$ as a coarsening or summary of $Y$.
+
+\begin{definition}[Pushforward]
+The pushforward $\pi_* p: X \to \mathcal{P}(Z)$ is defined by
+\[ (\pi_* p)_{x}(z) = \sum_{y: \pi(y) = z} p_x(y) = p_x(\pi^{-1}(z)). \]
+This is the distribution on $Z$ induced by first sampling $y \sim p_x$, then computing $z = \pi(y)$.
+\end{definition}
+
+\begin{definition}[Conditional Distribution]
+The conditional $p|_\pi: X \times Z \to \mathcal{P}(Y)$ is defined by
+\[ (p|_\pi)_{x,z}(y) = \begin{cases} \frac{p_x(y)}{(\pi_* p)_x(z)} & \text{if } \pi(y) = z \\ 0 & \text{otherwise} \end{cases} \]
+This is the distribution on $Y$ given that we know $x$ and have observed $z = \pi(y)$.
+Note that $(p|_\pi)_{x,z}$ is supported on the fiber $\pi^{-1}(z)$.
+\end{definition}
+
+\begin{definition}[Conditional Subjective Entropy]
+The conditional subjective entropy of $p$ given $\pi$ is:
+\[ \mathbb{M}_\mathcal{O}(p|\pi) \coloneqq \min_{u: X \times Z \to \mathcal{P}(Y)} \left\{ K(u) + \mathbb{E}_{x \sim \mu_X} \mathbb{E}_{z \sim (\pi_* p)_x} \left[ H((p|_\pi)_{x,z} \,\|\, u_{x,z}) \right] \right\} \]
+where the inner expectation is over $z$ distributed according to the pushforward $(\pi_* p)_x$.
+\end{definition}
+
+The key insight is that approximating $p$ can be decomposed into: (1) approximating $\pi_* p$ (the summary), and (2) approximating $p|_\pi$ (the detail given the summary).
+
+\begin{definition}[Composition of Programs]
+Given $u: X \to \mathcal{P}(Z)$ (a program for the summary) and $v: X \times Z \to \mathcal{P}(Y)$ (a conditional program for $Y$ given $Z$), we define the composed program $u \circ_\pi v: X \to \mathcal{P}(Y)$ by
+\[ (u \circ_\pi v)_x(y) = u_x(\pi(y)) \cdot v_{x,\pi(y)}(y). \]
+\end{definition}
+
+\begin{definition}[Composition-Closed Observer]
+An observer $\mathcal{O}$ is \emph{composition-closed with overhead $c$} (with respect to $\pi: Y \to Z$) if for all programs $u: X \to \mathcal{P}(Z)$ and $v: X \times Z \to \mathcal{P}(Y)$ in $\mathcal{O}$:
+\begin{enumerate}
+    \item $u \circ_\pi v \in \mathcal{O}$
+    \item $K(u \circ_\pi v) \leq K(u) + K(v) + c$
+\end{enumerate}
+\end{definition}
+
+\begin{theorem}[Chain Rule]\label{thm:chainrule}
+Let $\mathcal{O}$ be composition-closed with overhead $c$ with respect to $\pi: Y \to Z$. Then:
+\[ \mathbb{M}_\mathcal{O}(p) \leq \mathbb{M}_\mathcal{O}(\pi_* p) + \mathbb{M}_\mathcal{O}(p|\pi) + c \]
+\end{theorem}
+
+\begin{proof}
+Let $u^*$ be optimal for $\pi_* p$ and $v^*$ be optimal for $p|_\pi$. Consider the composed program $u^* \circ_\pi v^*$.
+
+\textbf{Key calculation:} The cross-entropy factors:
+\begin{align}
+H(p \,\|\, u^* \circ_\pi v^*)
+&= \mathbb{E}_{x} \mathbb{E}_{y \sim p_x}\left[-\log u^*_x(\pi(y)) - \log v^*_{x,\pi(y)}(y)\right] \\
+&= \mathbb{E}_{x} \mathbb{E}_{y \sim p_x}\left[-\log u^*_x(\pi(y))\right] + \mathbb{E}_{x} \mathbb{E}_{y \sim p_x}\left[-\log v^*_{x,\pi(y)}(y)\right]
+\end{align}
+
+For the first term, since $z = \pi(y)$ and $y \sim p_x$ implies $z \sim (\pi_* p)_x$:
+\[ \mathbb{E}_{x} \mathbb{E}_{y \sim p_x}\left[-\log u^*_x(\pi(y))\right] = \mathbb{E}_{x} \mathbb{E}_{z \sim (\pi_* p)_x}\left[-\log u^*_x(z)\right] = H(\pi_* p \,\|\, u^*) \]
+
+For the second term, we condition on $z = \pi(y)$:
+\[ \mathbb{E}_{x} \mathbb{E}_{y \sim p_x}\left[-\log v^*_{x,\pi(y)}(y)\right] = \mathbb{E}_{x} \mathbb{E}_{z \sim (\pi_* p)_x} \mathbb{E}_{y \sim (p|_\pi)_{x,z}}\left[-\log v^*_{x,z}(y)\right] = H(p|_\pi \,\|\, v^*) \]
+
+Therefore:
+\begin{align}
+\mathbb{M}_\mathcal{O}(p) &\leq K(u^* \circ_\pi v^*) + H(p \,\|\, u^* \circ_\pi v^*) \\
+&\leq [K(u^*) + K(v^*) + c] + [H(\pi_* p \,\|\, u^*) + H(p|_\pi \,\|\, v^*)] \\
+&= \mathbb{M}_\mathcal{O}(\pi_* p) + \mathbb{M}_\mathcal{O}(p|\pi) + c \qedhere
+\end{align}
+\end{proof}
+
+\subsection*{When is the Chain Rule an Equality?}
+
+The chain rule gives an upper bound. For a matching lower bound, we need a converse condition.
+
+\begin{definition}[Decomposition of Programs]
+Every program $u: X \to \mathcal{P}(Y)$ decomposes through $\pi$ as $u = \bar{u} \circ_\pi u|_\pi$ where:
+\begin{itemize}
+    \item $\bar{u}: X \to \mathcal{P}(Z)$ is the marginal: $\bar{u}_x = \pi_* (u_x)$
+    \item $u|_\pi: X \times Z \to \mathcal{P}(Y)$ is the conditional: $(u|_\pi)_{x,z}(y) = u_x(y) / \bar{u}_x(z)$ for $\pi(y) = z$
+\end{itemize}
+This is simply the factorization $u_x(y) = \bar{u}_x(\pi(y)) \cdot (u|_\pi)_{x,\pi(y)}(y)$.
+\end{definition}
+
+\begin{definition}[Decomposition-Closed Observer]
+An observer $\mathcal{O}$ is \emph{decomposition-closed with overhead $c'$} (with respect to $\pi: Y \to Z$) if for every program $u: X \to \mathcal{P}(Y)$ in $\mathcal{O}$:
+\begin{enumerate}
+    \item $\bar{u} \in \mathcal{O}$ and $u|_\pi \in \mathcal{O}$
+    \item $K(u) \geq K(\bar{u}) + K(u|_\pi) - c'$
+\end{enumerate}
+\end{definition}
+
+The second condition says that decomposing a program does not make it cheaper (up to overhead $c'$). This is the reverse of composition-closed.
+
+\begin{theorem}[Chain Rule Equality]\label{thm:chainrule-equality}
+Let $\mathcal{O}$ be both composition-closed with overhead $c$ and decomposition-closed with overhead $c'$ (with respect to $\pi: Y \to Z$). Then:
+\[ \mathbb{M}_\mathcal{O}(\pi_* p) + \mathbb{M}_\mathcal{O}(p|\pi) - c' \leq \mathbb{M}_\mathcal{O}(p) \leq \mathbb{M}_\mathcal{O}(\pi_* p) + \mathbb{M}_\mathcal{O}(p|\pi) + c \]
+\end{theorem}
+
+\begin{proof}
+The upper bound is Theorem~\ref{thm:chainrule}. For the lower bound, let $u^*$ be optimal for $p$. By decomposition-closure, $\bar{u}^* \in \mathcal{O}$ and $u^*|_\pi \in \mathcal{O}$.
+
+The cross-entropy factors (same calculation as before):
+\[ H(p \,\|\, u^*) = H(\pi_* p \,\|\, \bar{u}^*) + H(p|_\pi \,\|\, u^*|_\pi) \]
+
+Therefore:
+\begin{align}
+\mathbb{M}_\mathcal{O}(p) &= K(u^*) + H(p \,\|\, u^*) \\
+&\geq [K(\bar{u}^*) + K(u^*|_\pi) - c'] + [H(\pi_* p \,\|\, \bar{u}^*) + H(p|_\pi \,\|\, u^*|_\pi)] \\
+&= [K(\bar{u}^*) + H(\pi_* p \,\|\, \bar{u}^*)] + [K(u^*|_\pi) + H(p|_\pi \,\|\, u^*|_\pi)] - c' \\
+&\geq \mathbb{M}_\mathcal{O}(\pi_* p) + \mathbb{M}_\mathcal{O}(p|\pi) - c'
+\end{align}
+where the last inequality uses that $\bar{u}^*$ is feasible (not necessarily optimal) for $\pi_* p$, and similarly for $u^*|_\pi$.
+\end{proof}
+
+\begin{remark}[When $c = c' = 0$: Exact Equality]
+If $\mathcal{O}$ is both composition-closed and decomposition-closed with $c = c' = 0$, then:
+\[ \mathbb{M}_\mathcal{O}(p) = \mathbb{M}_\mathcal{O}(\pi_* p) + \mathbb{M}_\mathcal{O}(p|\pi) \]
+This is the case for the Shannon observer, where $K \equiv 0$ trivially satisfies both conditions.
+\end{remark}
+
+\begin{remark}[Classical Chain Rule]
+In the Shannon case ($\mathcal{O} = \mathcal{S}$, $K \equiv 0$), this becomes:
+\[ H(Y) = H(\pi(Y)) + H(Y|\pi(Y)) \]
+which is the classical chain rule as an equality.
+\end{remark}
+
+\begin{remark}[Interpretation]
+The chain rule says: to describe $Y$, we can first describe the summary $\pi(Y)$, then describe $Y$ given the summary.
+
+Equality holds when there is no ``compression advantage'' to representing $p$ jointly versus as (summary, conditional). If knowing the summary helps compress the conditional description (shared structure), you get strict inequality $\mathbb{M}(p) < \mathbb{M}(\pi_* p) + \mathbb{M}(p|\pi)$.
+\end{remark}
+
+
+
+\section{Connection to Epiplexity and $\mathcal V$-information}\label{sec:epiplexity}
+
+Our framework connects to the recent notion of \emph{epiplexity} \cite{finzi2025}.
+
+\begin{definition}[Epiplexity, after Finzi et al.]
+Fix a time bound $T$. Let $\mathcal{O}_T$ be time-bounded probabilistic programs. The
+\textbf{epiplexity} and \textbf{time-bounded entropy} of distribution $p$ are:
+\begin{align}
+\mathrm{S}_T(p) &= |u^*| && \text{(program length of optimal program)} \\
+\mathrm{H}_T(p) &= \mathbb{E}_{y \sim p}[-\log u^*(y)] && \text{(cross-entropy with optimal program)}
+\end{align}
+where $u^* = \arg\min_{u \in \mathcal{O}_T}\{|u| + \mathbb{E}_{y \sim p}[-\log u(y)]\}$.
+\end{definition}
+
+This is precisely our framework with:
+\begin{itemize}
+    \item $\mathcal{O} = \mathcal{O}_T$ (time-bounded programs)
+    \item $K(u) = |u|$ (program length)
+\end{itemize}
+
+Our contribution is to clarify the structure: epiplexity combines \emph{two} generalizations
+--- restricting the class of available programs, and charging for programs through the cost $K$ ---
+that can be studied independently.
+
+\subsection*{Connection to $\mathcal V$-information}
+
+The predictive $\mathcal V$-information of \cite{xu2020} is the other special case. There one fixes a family $\mathcal V$ of conditional models and defines
+\[ H_\mathcal{V}(Y \mid X) = \inf_{u \in \mathcal V}\, \mathbb E_{x \sim \mu_X}\mathbb E_{y \sim p_x}[-\log u_x(y)], \qquad I_\mathcal{V}(X \to Y) = H_\mathcal{V}(Y \mid \varnothing) - H_\mathcal{V}(Y \mid X). \]
+This is precisely $\mathbb M_\mathcal{O}$ with $\mathcal O = \mathcal V$ and $K \equiv 0$: the first generalization without the second. The two prior notions thus occupy two cells of a square that the present framework fills in:
+
+\begin{center}
+\begin{tabular}{l|ll}
+ & $K \equiv 0$ & $K$ arbitrary \\
+\hline
+$\mathcal O$ unrestricted & Shannon entropy & MDL \\
+$\mathcal O$ restricted & $\mathcal V$-information \cite{xu2020} & epiplexity \cite{finzi2025}, this note \\
+\end{tabular}
+\end{center}
+
+The central phenomenon of \cite{xu2020} is that the data-processing inequality \emph{fails} for $\mathcal V$-information: deterministic processing (decrypting a ciphertext, say) can create usable information. Corollary~\ref{cor:dpi} below locates this failure precisely and bounds it.
+
+
+\section{Shearer's Inequality for Subjective Entropy}
+
+We now generalize Shearer's inequality, a powerful refinement of subadditivity, to subjective entropy.
+
+\subsection*{Classical Shearer's Inequality}
+
+Let $Y = Y_1 \times \cdots \times Y_n$ and let $S_1, \ldots, S_m \subseteq [n]$ be subsets such that each index $i \in [n]$ appears in at least $k$ of the subsets. For $S \subseteq [n]$, write $Y_S = \prod_{i \in S} Y_i$ and let $\pi_S: Y \to Y_S$ be the projection.
+
+\begin{theorem}[Classical Shearer]
+Let $(Y_1, \ldots, Y_n) \sim p$. Then
+\[ H(Y_1, \ldots, Y_n) \leq \frac{1}{k} \sum_{j=1}^m H(Y_{S_j}) \]
+\end{theorem}
+
+Special cases include:
+\begin{itemize}
+    \item \textbf{Subadditivity:} $S_i = \{i\}$, $k = 1$ gives $H(Y) \leq \sum_i H(Y_i)$
+    \item \textbf{Han's inequality:} $S_i = [n] \setminus \{i\}$, $k = n-1$ gives $H(Y) \leq \frac{1}{n-1}\sum_i H(Y_{[n]\setminus\{i\}})$
+\end{itemize}
+
+\subsection*{The Fractional Product Construction}
+
+To generalize Shearer, we need to construct a program for $p$ on $Y$ from programs $u_j$ on the marginals $Y_{S_j}$.
+
+\begin{definition}[Fractional Product]
+Given programs $u_j: X \to \mathcal{P}(Y_{S_j})$ for $j = 1, \ldots, m$, the \emph{fractional product with exponent $1/k$} is:
+\[ u^{\otimes}_{x}(y) = \frac{1}{Z_x} \prod_{j=1}^m u_{j,x}(y_{S_j})^{1/k} \]
+where $Z_x = \sum_{y \in Y} \prod_{j=1}^m u_{j,x}(y_{S_j})^{1/k}$ is the normalization constant.
+\end{definition}
+
+\begin{proposition}[Cross-Entropy of Fractional Product]
+\[ H(p \,\|\, u^{\otimes}) = \mathbb{E}_x[\log Z_x] + \frac{1}{k} \sum_{j=1}^m H(\pi_{S_j,*} p \,\|\, u_j) \]
+\end{proposition}
+
+\begin{proof}
+\begin{align}
+H(p \,\|\, u^{\otimes}) &= \mathbb{E}_x \mathbb{E}_{y \sim p_x}\left[-\log u^{\otimes}_x(y)\right] \\
+&= \mathbb{E}_x \mathbb{E}_{y \sim p_x}\left[\log Z_x - \frac{1}{k}\sum_j \log u_{j,x}(y_{S_j})\right] \\
+&= \mathbb{E}_x[\log Z_x] + \frac{1}{k} \sum_j \mathbb{E}_x \mathbb{E}_{y \sim p_x}\left[-\log u_{j,x}(y_{S_j})\right] \\
+&= \mathbb{E}_x[\log Z_x] + \frac{1}{k} \sum_j H(\pi_{S_j,*} p \,\|\, u_j) \qedhere
+\end{align}
+\end{proof}
+
+The key observation is that Shearer's inequality holds if $\mathbb{E}_x[\log Z_x]$ is bounded.
+
+\subsection*{Shearer-Closed Observers}
+
+\begin{definition}[Shearer-Closed Observer]
+An observer $\mathcal{O}$ is \emph{Shearer-closed} with respect to cover $(S_1, \ldots, S_m)$ with coverage $k$, overhead $c$, and normalization bound $c'$ if for any programs $u_j: X \to \mathcal{P}(Y_{S_j})$ in $\mathcal{O}$:
+\begin{enumerate}
+    \item The fractional product $u^{\otimes} \in \mathcal{O}$
+    \item $K(u^{\otimes}) \leq \frac{1}{k} \sum_{j=1}^m K(u_j) + c$
+    \item $\mathbb{E}_x[\log Z_x] \leq c'$ (normalization bound)
+\end{enumerate}
+\end{definition}
+
+Condition (3) is where the ``log inequality'' hides. For the Shannon observer with optimal choices $u_j = \pi_{S_j,*}p$, the classical Shearer inequality implies $\log Z \leq 0$.
+
+\begin{theorem}[Shearer's Inequality for Subjective Entropy]\label{thm:shearer}
+Let $\mathcal{O}$ be Shearer-closed with respect to $(S_1, \ldots, S_m)$ with coverage $k$, overhead $c$, and normalization bound $c'$. Then for any $p: X \to \mathcal{P}(Y)$:
+\[ \mathbb{M}_\mathcal{O}(p) \leq \frac{1}{k} \sum_{j=1}^m \mathbb{M}_\mathcal{O}(\pi_{S_j,*} p) + c + c' \]
+\end{theorem}
+
+\begin{proof}
+Let $u^*_j$ be optimal for $\pi_{S_j,*} p$. Consider the fractional product $u^{\otimes}$ built from these.
+
+By the cross-entropy formula and the Shearer-closed conditions:
+\begin{align}
+\mathbb{M}_\mathcal{O}(p) &\leq K(u^{\otimes}) + H(p \,\|\, u^{\otimes}) \\
+&\leq \left[\frac{1}{k} \sum_j K(u^*_j) + c\right] + \left[\mathbb{E}_x[\log Z_x] + \frac{1}{k} \sum_j H(\pi_{S_j,*} p \,\|\, u^*_j)\right] \\
+&\leq \frac{1}{k} \sum_j \left[K(u^*_j) + H(\pi_{S_j,*} p \,\|\, u^*_j)\right] + c + c' \\
+&= \frac{1}{k} \sum_j \mathbb{M}_\mathcal{O}(\pi_{S_j,*} p) + c + c' \qedhere
+\end{align}
+\end{proof}
+
+\subsection*{The Shannon Observer Satisfies Shearer}
+
+\begin{proposition}
+The Shannon observer $\mathcal{S}$ is Shearer-closed with $c = c' = 0$ for any cover with coverage $k$.
+\end{proposition}
+
+\begin{proof}
+Conditions (1) and (2) are trivial since $K \equiv 0$ and all distributions are in $\mathcal{S}$.
+
+For condition (3), we need $\log Z \leq 0$ when $u_j = \pi_{S_j,*} p$ (the optimal choices).
+This is equivalent to showing:
+\[ \sum_y \prod_j p(y_{S_j})^{1/k} \leq 1 \]
+
+This is precisely the content of the classical Shearer inequality! Indeed, classical Shearer can be written as:
+\[ \sum_y p(y) \log p(y) \geq \frac{1}{k} \sum_j \sum_y p(y) \log p(y_{S_j}) \]
+which, by convexity arguments, implies the normalization bound.
+
+Alternatively: by H\"older's inequality with exponents summing to $k$ (each coordinate appears $k$ times), we have $Z \leq 1$.
+\end{proof}
+
+\begin{remark}[Where the Log Inequality Hides]
+Just as with subadditivity and the chain rule, the log inequality in Shearer appears in the \emph{optimization/normalization step} (showing $\log Z \leq 0$) rather than in the \emph{structural step} (the algebraic manipulation of cross-entropies).
+
+For general observers, we simply \emph{assume} the normalization bound as part of the Shearer-closed condition. This isolates exactly what property is needed beyond the algebraic structure.
+\end{remark}
+
+\begin{remark}[Special Cases]
+\begin{itemize}
+    \item For $S_i = \{i\}$ and $k = 1$: Shearer reduces to subadditivity, and the fractional product is just the ordinary product. The normalization bound $Z \leq 1$ is trivial (it's an equality).
+    \item For $m = 2$, $S_1 \cup S_2 = [n]$, $S_1 \cap S_2 = \emptyset$, $k = 1$: This is exactly subadditivity, recovered as a special case.
+\end{itemize}
+\end{remark}
+
+
+\section{A Master Theorem}
+
+The proofs of subadditivity, the chain rule and Shearer's inequality share a common shape: combine optimal programs for derived problems into a feasible program for the original problem, and observe that the cross-entropy decomposes. This section isolates the mechanism. The reason every such proof is ``free'' is that cross-entropy is \emph{linear in the logarithm of the program}: any method of assembling programs that is log-affine therefore decomposes exactly, with defect equal to the expected log-normalizer. The entire calculus reduces to (i) closure of the observer under the assembly, priced in $K$, and (ii) a bound on the normalizer. In the classical Shannon setting (i) is free and (ii) is convexity; for bounded observers, (i) carries all the computational content.
+
+\subsection*{Derived problems and log-linear combinations}
+
+Fix a target $p: X \to \mathcal P(Y)$ with input distribution $\mu_X$, and let $(x,y)$ denote a sample with $x \sim \mu_X$, $y \sim p_x$.
+
+\begin{definition}[Derived problem]
+Let $s: X \times Y \to X'$ and $t: X \times Y \to Y'$ be maps. The \emph{derived problem} $p^{(s,t)}: X' \to \mathcal P(Y')$ has input distribution the law of $s(x,y)$ and conditional distributions the law of $t(x,y)$ given $s(x,y)$.
+\end{definition}
+
+All the constructions of the previous sections are derived problems: the marginal $p_1$ is $(s,t) = (x_1,\, y_1)$; the pushforward $\pi_* p$ is $(x,\, \pi(y))$; the conditional $p|_\pi$ is $\big((x,\pi(y)),\, y\big)$; the Shearer marginals are $(x,\, y_{S_j})$.
+
+\begin{definition}[Log-linear combination]
+Given derived problems $p^{(j)} = p^{(s_j, t_j)}$ on $(X_j, Y_j)$, weights $\lambda_j \geq 0$ and programs $u_j: X_j \to \mathcal P(Y_j)$, the \emph{log-linear combination} is the program
+\[ \Phi(u_1, \ldots, u_m)_x(y) = \frac{1}{Z_x} \prod_{j=1}^m u_{j,\, s_j(x,y)}\big(t_j(x,y)\big)^{\lambda_j}, \qquad Z_x = \sum_{y \in Y}\, \prod_{j=1}^m u_{j,\, s_j(x,y)}\big(t_j(x,y)\big)^{\lambda_j}. \]
+\end{definition}
+
+\begin{lemma}[Exact cost decomposition]\label{lem:loglinear}
+\[ H\big(p \,\|\, \Phi(u_1,\ldots,u_m)\big) = \sum_{j=1}^m \lambda_j\, H\big(p^{(j)} \,\|\, u_j\big) + \mathbb E_{x \sim \mu_X}[\log Z_x]. \]
+\end{lemma}
+
+\begin{proof}
+Take $-\log$ of the definition and use linearity of expectation. For each factor,
+\[ \mathbb E_{x, y}\big[-\log u_{j,\, s_j(x,y)}(t_j(x,y))\big] = \mathbb E_{x'}\, \mathbb E_{y' \sim p^{(j)}_{x'}}\big[-\log u_{j,x'}(y')\big] = H\big(p^{(j)} \,\|\, u_j\big), \]
+where the first equality is the definition of the derived problem (the tower property). No property of the logarithm beyond linearity of expectation is used.
+\end{proof}
+
+\begin{definition}[$\Phi$-closed observer]
+The observer $\mathcal O$ is \emph{$\Phi$-closed with overhead $c$ and normalization bound $c'$} if for all $u_j \in \mathcal O$:
+\begin{enumerate}
+    \item $\Phi(u_1,\ldots,u_m) \in \mathcal O$;
+    \item $K(\Phi(u_1,\ldots,u_m)) \leq \sum_j \lambda_j K(u_j) + c$;
+    \item $\mathbb E_{x}[\log Z_x] \leq c'$.
+\end{enumerate}
+\end{definition}
+
+\begin{theorem}[Master theorem]\label{thm:master}
+If $\mathcal O$ is $\Phi$-closed with overhead $c$ and normalization bound $c'$, then
+\[ \mathbb M_\mathcal{O}(p) \;\leq\; \sum_{j=1}^m \lambda_j\, \mathbb M_\mathcal{O}\big(p^{(j)}\big) + c + c'. \]
+\end{theorem}
+
+\begin{proof}
+Let $u_j^*$ be optimal for $p^{(j)}$. Then $\Phi(u_1^*, \ldots, u_m^*)$ is feasible for $p$, and by Lemma~\ref{lem:loglinear},
+\[ \mathbb M_\mathcal{O}(p) \leq K(\Phi(\vec u^{\,*})) + H(p \,\|\, \Phi(\vec u^{\,*})) \leq \sum_j \lambda_j \big[K(u_j^*) + H(p^{(j)} \,\|\, u_j^*)\big] + c + c' = \sum_j \lambda_j\, \mathbb M_\mathcal{O}(p^{(j)}) + c + c'. \qedhere \]
+\end{proof}
+
+Every inequality in this note is an instance:
+
+\begin{center}
+\begin{tabular}{lllll}
+inequality & derived problems $(s_j, t_j)$ & $\lambda_j$ & $Z$ & reference \\
+\hline
+subadditivity & $(x_1,\, y_1)$, $(x_2,\, y_2)$ & $1, 1$ & $\equiv 1$ & Thm.~\ref{thm:subadditive} \\
+chain rule & $(x,\, \pi(y))$, $\big((x,\pi(y)),\, y\big)$ & $1, 1$ & $\leq 1$ & Thm.~\ref{thm:chainrule} \\
+Shearer & $(x,\, y_{S_j})$ & $1/k$ & $\leq 1$ & Thm.~\ref{thm:shearer} \\
+data processing & $(\varphi(x),\, y)$ & $1$ & $\equiv 1$ & Cor.~\ref{cor:dpi} \\
+\end{tabular}
+\end{center}
+
+For subadditivity and data processing the product is automatically normalized. For the chain rule, $Z_x = \sum_z u_x(z) \sum_{y \in \pi^{-1}(z)} v_{x,z}(y) \leq 1$. For Shearer, $Z \leq 1$ holds for \emph{arbitrary} program tuples whenever each coordinate is covered at least $k$ times, by the generalized H\"older inequality of Finner (surplus coverage only decreases $Z$, since $u \leq 1$ pointwise); this strengthens the normalization discussion of the previous section, where the bound was only verified at the optimum. In each case the analytic content of the classical inequality is confined to the one-line bound on $Z$; everything else is linearity of expectation and bookkeeping in $K$.
+
+\begin{remark}[The dual master theorem]
+The lower bounds have the same shape in reverse. If every $u \in \mathcal O$ admits a factorization $u = \Phi(\Psi_1 u, \ldots, \Psi_m u)$ with $\Psi_j u \in \mathcal O$, $K(u) \geq \sum_j \lambda_j K(\Psi_j u) - c$, and $\mathbb E_x[\log Z_x] \geq -c'$, then applying Lemma~\ref{lem:loglinear} to an optimal $u^*$ for $p$ gives $\mathbb M_\mathcal{O}(p) \geq \sum_j \lambda_j \mathbb M_\mathcal{O}(p^{(j)}) - c - c'$. Theorem~\ref{thm:chainrule-equality} is the instance for the composition operator. Equalities in the calculus are reductions that run in both directions.
+\end{remark}
+
+\subsection*{A bounded data-processing inequality}
+
+The instance absent from classical information theory is the fourth row of the table. Let $\varphi: X \to X'$ be a processing map and let $p^\varphi: X' \to \mathcal P(Y)$ be the derived problem $(s,t) = (\varphi(x),\, y)$: predicting the same outcome from the processed input.
+
+\begin{definition}
+$\mathcal O$ is \emph{$\varphi$-closed with price $K_\mathcal{O}(\varphi)$} if $u \in \mathcal O$ implies $u \circ \varphi \in \mathcal O$ with $K(u \circ \varphi) \leq K(u) + K_\mathcal{O}(\varphi)$.
+\end{definition}
+
+\begin{corollary}[Bounded data processing]\label{cor:dpi}
+If $\mathcal O$ is $\varphi$-closed, then $\mathbb M_\mathcal{O}(p) \leq \mathbb M_\mathcal{O}(p^\varphi) + K_\mathcal{O}(\varphi)$. Defining the subjective information $\mathbb I_\mathcal{O}(X \to Y) \coloneqq \mathbb M_\mathcal{O}(p^\varnothing) - \mathbb M_\mathcal{O}(p)$, where $p^\varnothing$ is the input-blind problem, this reads
+\[ \mathbb I_\mathcal{O}\big(\varphi(X) \to Y\big) \;\leq\; \mathbb I_\mathcal{O}(X \to Y) + K_\mathcal{O}(\varphi). \]
+\end{corollary}
+
+\begin{remark}
+For the Shannon observer $K_\mathcal{O}(\varphi) = 0$ for every $\varphi$, and we recover the classical data-processing inequality: deterministic processing cannot create information. For bounded observers the classical inequality fails, and this failure is the starting observation of both \cite{xu2020} and \cite{finzi2025}. The corollary quantifies it: \emph{processing creates information only relative to observers who cannot afford the processing, and the amount created is at most the observer's price for it.} In particular, if $\varphi$ is invertible and both $\varphi$ and $\varphi^{-1}$ are cheap for $\mathcal O$, then $|\mathbb M_\mathcal{O}(p) - \mathbb M_\mathcal{O}(p^\varphi)| \leq \max\big(K_\mathcal{O}(\varphi), K_\mathcal{O}(\varphi^{-1})\big)$: subjective entropy is invariant under cheap re-parameterizations of the input. Cheap invertible processing plays the role of a gauge transformation, and $\mathbb M_\mathcal{O}$ is a gauge invariant.
+\end{remark}
+
+\bibliographystyle{plain}
+\begin{thebibliography}{1}
+\bibitem{finzi2025}
+M.~Finzi, S.~Qiu, Y.~Jiang, P.~Izmailov, J.~Z.~Kolter, and A.~G.~Wilson.
+\newblock From entropy to epiplexity: Rethinking information for computationally bounded intelligence.
+\newblock \emph{arXiv:2601.03220}, 2025.
+
+\bibitem{xu2020}
+Y.~Xu, S.~Zhao, J.~Song, R.~Stewart, and S.~Ermon.
+\newblock A theory of usable information under computational constraints.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2020. arXiv:2002.10689.
+\end{thebibliography}
+
+\end{document}
