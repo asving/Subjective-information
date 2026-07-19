@@ -6,3 +6,5 @@ Working notes on computational information: an observer-dependent generalization
 - **`finding-computation.md`** — the surrounding discussion: where the framework came from (the implementation problem), what it buys (implementation surplus, gauge invariance, the structure–noise frontier), the two experimental arenas (mechanistic interpretability and mathematics itself), and the open problems (interventions, the internal observer, hierarchy, exchange rates).
 
 Latest compiled PDF also mirrored at [asving.com](https://asving.com/uploads/2026/01/epiplexity-reformulation.pdf).
+
+**Companion document:** *Computational Platonism* ([arXiv:2506.19787](https://arxiv.org/abs/2506.19787), source in [Math-and-AI](https://github.com/asving/Math-and-AI)) — the philosophical side of this program: mathematics as the experimental study of computational systems. It supplies the direction-of-fit move that dissolves the classical triviality arguments, and its notion of mathematical "surprise" is what the bounded data-processing inequality formalizes.
