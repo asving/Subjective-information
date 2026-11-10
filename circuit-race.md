@@ -4,38 +4,43 @@
 
 ## The idea
 
-The draft's emergence threshold says a bounded observer acquires a piece of structure once it has paid for itself: after ΔK/ΔH samples. Here the observer is a learner, the structures are circuits, and the question is concrete: given a data stream and a pool of candidate units, which circuit forms first and what follows it?
+The draft's emergence threshold says a bounded observer acquires a piece of structure once it has paid for itself: after ΔK/ΔH samples. Here the observer is a learner, the structures are circuits, and the question is concrete: given a data stream and a population of candidate units, which circuit forms first and what follows it?
 
-The answer is computed, not trained. We enumerate small circuits built from a few transformer-like primitives, compute each one's exact benefit on the stream, and let them race. On the toy processes below the race builds the kind of circuit that small transformers are reported to learn. Where an order of appearance is known, one of the two race rules tried gets it right. The limits are listed at the end.
+The answer is computed, not trained. We enumerate small circuits built from a few transformer-like primitives, compute each one's exact benefit on the stream, and let them race. On the toy processes below the race builds the kind of circuit that small transformers are reported to learn. Where an order of appearance is known, one of the two population regimes tried (full attention) gets it right. The limits are listed at the end.
 
 ## The model
 
-**Stream.** Every position holds a set of slots: the current token, and whatever units have written there.
+A population of units reads from and writes to one shared stream. There are three clocks: the position t in a sequence, the order i of the units within one forward pass, and the number n of training samples seen so far.
 
-**Units.** A unit reads slots and writes one slot. One form has covered almost every unit that mattered:
+**The stream.** A grid of slots. Row t belongs to position t. Column 0 holds the token; column i belongs to unit i.
 
-    out(t) = pool over s in P(t) of  <a(t), b(s)> · c(s)
+**The population.** Units come in a fixed order. Unit i has a *wiring*: three columns a, b, c that it reads, all earlier than its own; a position pattern P; and a pool. At every position of every input it reads the stream and writes its own column:
 
-Here a, b, c are any slots (raw, written by another unit, or the constant 1), P is a position pattern (here, a fixed offset, every p-th position back, all, or recency-weighted), and the pool is a mean or its sharp limit (an OR). Copying, matching two tokens, and pooling evidence over the history are all special cases. The examples also use a pointwise gate (one slot times an indicator of another) and, in the last one, a fixed permutation of a vector slot.
+    s[t, i] = pool over t' in P(t) of  <s[t, a], s[t', b]> · s[t', c]
 
-**Price.** Each unit has a price κ in bits: a made-up description length, about 3 bits per slot named plus a few for the pattern.
+P is "here", a fixed offset, every p-th position back, all, or recency-weighted. The pool is a mean or its sharp limit, an OR. Any of a, b, c can be the constant 1, so copying a slot from elsewhere, matching two slots, and gating one slot by another at the same position are all special cases. The *parents* of a unit are the units whose columns it reads. (The examples also use an indicator gate and, in the last one, a fixed permutation of a vector slot.)
 
-**Circuit and readout.** A circuit is a set of units closed under "reads from". The prediction is a fitted linear combination of the slots. Strengths are free and are refitted whenever the circuit changes.
+**One forward pass.** Positions run left to right. At each position the units fire in order, each seeing what the earlier ones wrote. A final reader predicts the next token from row t as a linear combination of its columns. Every unit fires on every input; what differs between units and inputs is how much they write.
 
-**Benefit.** The benefit ΔH of adding a bundle of units to a circuit is the drop in loss, in bits per token, after refitting.
+**What a unit carries.** A wiring, and a number y in bits: its evidence. The wiring has a price κ in bits, a made-up description length of about 3 bits per column named plus a few for the pattern. Equivalently, the wiring has prior weight 2^(−κ) in the population. Evidence starts at −κ.
 
-**The race.** Two rules were tried.
+**Learning.** Each sample adds to a unit's evidence the bits it saved: the drop in loss from having that unit on, given its parents. A unit is *on* when its own evidence, plus the surplus of the units that read it, is positive and its parents are on. The reader's strengths adjust quickly, so they sit at their best values for whichever units are on; a strength can therefore fall back to zero when a later unit makes an earlier one redundant.
 
-- *Full attention.* Every candidate is tested on every sample, so evidence for a bundle accumulates at ΔH bits per token against a prior of 2^(−κ). The bundle enters after κ/ΔH tokens, smallest first. Proposition 3 of the draft is the single-unit case.
-- *Search-limited.* A candidate is tested in proportion to current belief in it. The expected wait is about (κ + (2^κ − 1)/ln 2)/ΔH, exponential in the price.
+Globally this is a single statement. After n samples, the units that are on are the parent-closed set S that maximises
 
-**Over time.** For a nested chain of circuits, circuit k carries weight proportional to 2^(−κ_k − n·L_k) after n tokens, where L_k is its loss. This turns a chain into a training trajectory.
+    n · ΔH(S) − κ(S)
+
+where ΔH(S) is the loss that S removes (bits per token, with the reader refitted) and κ(S) is its total price. This is the most probable set under the prior 2^(−κ(S)) and the evidence of n samples; the local rule above is its exact form when benefits add and each unit has one parent. As n grows the maximiser gains units in bundles, and a bundle G enters when n·ΔH(G) = κ(G). Proposition 3 of the draft is the single-unit case. Weighting each set by 2^(−κ(S) − n·L(S)), with L its loss, gives the mixture over time used in example 5.
+
+**Population size.** The statement above assumes a unit for every wiring, so that every wiring gathers evidence on every sample. Call this *full attention*. With a small population only the wirings currently held gather evidence, and a new concept needs an old unit rewired. If units are rewired toward wirings in proportion to current belief in them, the expected wait for a bundle is about (κ + (2^κ − 1)/ln 2)/ΔH, exponential in the price. Call this *search-limited*. It appears here only as that formula.
 
 ## Running a race
 
+The scripts follow the maximiser greedily, which is the race.
+
 1. Write down the process and compute the exact distribution over contexts (or sample it).
 2. Fix the primitives and prices.
-3. At each stage, score every new unit, and every pair in which the second unit reads the first, by refitting the readout exactly. Adopt the best bundle and repeat.
+3. At each stage, score every new unit, and every pair in which the second unit reads the first, by refitting the reader exactly. Adopt the bundle with the smallest κ/ΔH and repeat. The search-limited wait is printed alongside.
 
 ## Examples
 
