@@ -118,6 +118,7 @@ The blind swap's strength goes 0.53, 0.55, 0.02: it is rolled back once the swit
 - **Only some results were blind.** The soft XOR and the orbit circuit were computed before the trained result was known. The RRXOR phase circuit was found after the language was widened to let heads read written slots, and self-inoculation was run with the post in hand.
 - **No timings have been checked.** The race gives an order and relative waits. Nothing here has been compared with a training curve.
 - **The search is shallow.** Pairs are searched only at the first one or two stages. The sizes are small (12 tokens, dimension 4, 7-token contexts).
+- **The unit simplifies attention in three ways.** In a transformer the position pattern and the content match are two terms of one learned score, the score passes through a softmax, and the pool is always a weighted mean. Here the pattern is chosen from a menu, the match multiplies the output directly, and the OR is a separate pool, standing for the sharp limit of the softmax.
 - **Missing primitives.** There is no exact solve or normalisation, no recursion, and no model of an MLP as a lookup table.
 
 ## Reproducing
