@@ -10,17 +10,19 @@ The answer is computed, not trained. We enumerate small circuits built from a fe
 
 ## The model
 
-A population of units reads from and writes to one shared stream. There are three clocks: the position t in a sequence, the order i of the units within one forward pass, and the number n of training samples seen so far.
+A population of units reads from and writes to one shared stream. There are three clocks: the position t in a sequence, the depth of a unit within one forward pass, and the number n of training samples seen so far.
 
 **The stream.** A grid of slots. Row t belongs to position t. Column 0 holds the token; column i belongs to unit i.
 
-**The population.** Units come in a fixed order. Unit i has a *wiring*: three columns a, b, c that it reads, all earlier than its own; a position pattern P; and a pool. At every position of every input it reads the stream and writes its own column:
+**The population.** A unit is a *wiring* and nothing else: a tuple (a, b, c, P, pool) naming three columns it reads, a position pattern and a pooling mode. It has no weights of its own. At every position of every input, unit i reads the stream and writes its own column:
 
     s[t, i] = pool over t' in P(t) of  <s[t, a], s[t', b]> · s[t', c]
 
-P is "here", a fixed offset, every p-th position back, all, or recency-weighted. The pool is a mean or its sharp limit, an OR. Any of a, b, c can be the constant 1, so copying a slot from elsewhere, matching two slots, and gating one slot by another at the same position are all special cases. The *parents* of a unit are the units whose columns it reads. (The examples also use an indicator gate and, in the last one, a fixed permutation of a vector slot.)
+P is "here", a fixed offset, every p-th position back, all, or recency-weighted. The pool is a mean or its sharp limit, an OR. Any of a, b, c can be the constant 1, so copying a slot from elsewhere, matching two slots, and gating one slot by another at the same position are all special cases. A column holds a scalar or a small vector, and the bracket is a product or an inner product. The *parents* of a unit are the units whose columns it reads. Reads must not form a cycle, and a unit cannot read its own column, so there is no recursion. (The examples also use an indicator gate and, in the last one, a fixed permutation of a vector slot.)
 
-**One forward pass.** Positions run left to right. At each position the units fire in order, each seeing what the earlier ones wrote. A final reader predicts the next token from row t as a linear combination of its columns. Every unit fires on every input; what differs between units and inputs is how much they write.
+In transformer terms a column is one feature direction in the residual stream. A unit is one rank-one piece of an attention head, or, when the pattern is "here", one neuron that multiplies features at the same position.
+
+**One forward pass.** The only order is the one imposed by reads. A unit can fill its column, at all positions at once, as soon as its parents' columns are filled. Units that do not read each other act in parallel, and the depth of a unit is the longest chain of reads beneath it. A final reader predicts the next token from row t as a linear combination of its columns. Every unit fires on every input; what differs between units and inputs is how much they write.
 
 **What a unit carries.** A wiring, and a number y in bits: its evidence. The wiring has a price κ in bits, a made-up description length of about 3 bits per column named plus a few for the pattern. Equivalently, the wiring has prior weight 2^(−κ) in the population. Evidence starts at −κ.
 
