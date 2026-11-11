@@ -148,6 +148,22 @@ Columns here are given feature directions, there is one head, and there is no la
 
 `torch_read_write.py` measures the resulting order on a real one-layer transformer (width 32, 64 neurons, Adam, small initial weights, five seeds). The leading neurons' writes come within cosine 0.9 of their final directions at steps 75, 150, 98, 309 and 68; their reads at steps 185, 228, 100, 315 and 301. Writes are never later and are clearly earlier in three seeds. The final writes all lie along the logit direction (cosine 0.89 to 0.99), while the reads spread over several directions. Neither group carries the gain alone: putting all reads, or all writes, back to their initial values returns the loss to 1.000 at every stage.
 
+## Closest prior work: Alternating Gradient Flows
+
+Kunin, Marchetti and coauthors (NeurIPS 2025) approximate gradient flow in two-layer networks with small initial weights by an alternation. Every neuron starts *dormant*. A dormant neuron climbs its *utility*, the correlation of its output with the current residual, and accumulates it over time. The first neuron whose accumulated utility passes a threshold set by its initial norm becomes *active*. The active neurons then minimise the loss together, which fixes a new residual, and the cycle repeats.
+
+The correspondence with this note is close.
+
+| Alternating Gradient Flows | This note |
+|---|---|
+| Dormant and active neurons | Units that are off and on |
+| Utility: correlation of a neuron's output with the residual | Benefit: the loss a unit removes once the reader is refitted |
+| Accumulated utility against a threshold −log(initial norm) | Evidence against a price |
+| Order κ of the utility (2 for a linear or ReLU neuron, 3 for a quadratic neuron or a rank-one attention head) | Number of weights that must grow together, giving the same two waiting laws |
+| Cost minimisation over the active neurons | Refitting the reader |
+
+The differences run both ways. Their neurons find their own direction by gradient ascent on the utility, so there is no menu of wirings and no made-up price, and they prove convergence to gradient flow for diagonal linear networks. They treat two-layer networks only, where neurons interact only through the residual; a unit with no utility of its own can never activate, so parents and bundles lie outside the framework. Twice the neuron is not their unit either: for fully connected linear networks they switch to singular modes, and for modular addition they activate a group of neurons per frequency.
+
 ## What the examples suggest
 
 - **One unit type goes a long way.** Match a slot here against a slot there, and use the match to weight a third slot. This is close to RASP's select and aggregate, and to query, key and value composition in the transformer-circuits framework.
@@ -179,6 +195,7 @@ Plain Python 3, no dependencies. Each script prints its own setup, candidates an
 
 ## References
 
+- D. Kunin, G. L. Marchetti, F. Chen, D. Karkada, J. B. Simon, M. R. DeWeese, S. Ganguli, N. Miolane, *Alternating Gradient Flows: A Theory of Feature Learning in Two-layer Neural Networks*, NeurIPS 2025.
 - G. Weiss, Y. Goldberg, E. Yahav, *Thinking Like Transformers* (RASP), ICML 2021.
 - N. Elhage et al., *A Mathematical Framework for Transformer Circuits*, 2021.
 - H. Zhou et al., *What Algorithms can Transformers Learn? A Study in Length Generalization* (the RASP-L conjecture), 2023.
