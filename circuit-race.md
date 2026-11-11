@@ -105,6 +105,45 @@ The setting of [the post](https://asving.com/blog/self-inoculation/): x from one
 
 The blind swap's strength goes 0.53, 0.55, 0.02: it is rolled back once the switch exists. The final loss matches the exact ideal (1.412), and the flip tracks the situation belief (0.04, 0.23, 0.50, 0.76, 0.96 at beliefs near 0.05, 0.25, 0.5, 0.75, 0.95). Finetuning on A alone ends after one step: the swap at full strength, flip 1.00 in both situations, and no gate with any benefit. Over time, the mixed run's flip in B rises to a peak of 0.39 and returns to 0.06.
 
+## A transformer-faithful version, trained by gradient descent
+
+`gd_rrxor.py` drops the race and trains a one-layer transformer on aligned RRXOR. Every unit is one scalar weight of an attention head, or one ReLU neuron.
+
+    score         s(t, t') = b[t − t'] + β · x_t · x_t'                 t' = t, …, t−3
+    attention     α(t, ·) = softmax of the scores                        the only pool is this weighted mean
+    head output   A_t = ω · Σ_t' α(t, t') · x_t'
+    neuron j      n_j = ReLU(u_j · x_t + v_j · A_t + g_j[t] + c_j)
+    logit         z_t = Σ_j r_j · n_j + ρ_x · x_t + ρ_A · A_t + d[t]
+
+Here b is a relative-position bias (one weight per offset), β a content weight, ω the value/output weight, g_j[t] the neuron's read of position t, and r, ρ, d the unembedding. All weights start as Gaussians of scale ε and follow full-batch gradient descent on the exact loss.
+
+**The gradients.** Write δ_t for the prediction error at position t, and G_t = δ_t · (ρ_A + Σ_j r_j · v_j · [n_j > 0]) for the error signal arriving at the head's output. Then, averaging over data and positions:
+
+    unembedding   dr_j/dn = −E[ δ_t · n_j ]
+    neuron input  du_j/dn = −E[ δ_t · r_j · [n_j > 0] · x_t ]            (same for v_j with A_t, and for g_j[t])
+    value/output  dω/dn   = −E[ G_t · ā_t ]                              ā_t = Σ_t' α(t, t') · x_t'
+    position      db_δ/dn = −E[ G_t · ω · α(t, t−δ) · (x_(t−δ) − ā_t) ]
+    content       dβ/dn   = −E[ G_t · ω · x_t · Var_α(x_t') ]
+
+Every rate is a correlation with the current error, multiplied by the other weights on the same path: downstream weights scale the error signal, upstream weights scale the feature. Three things follow.
+
+- **Plateaus and two growth laws.** If k weights must grow together from scale ε, each grows at a rate proportional to the product of the others. For k = 2 the growth is exponential and the wait is about log(1/ε)/c. For k = 3 it is hyperbolic and the wait is about 1/(c·ε). With price κ = log₂(1/ε), these are the full-attention and the search-limited rule: "tested in proportion to belief" is exactly a rate proportional to the weight's own size.
+- **Reuse.** A circuit that shares grown weights with an earlier one needs fewer new weights, so it follows a faster law.
+- **Rollback.** The correlation is with the current error. Once another path explains it, the sign flips and the weight shrinks.
+
+**The run.** The network sits on a plateau, then passes through the phase-blind soft XOR, then gates it.
+
+| Initial scale ε | Plateau ends at | ε × time | Soft stage: P(XOR) at XOR positions / elsewhere | Gating follows after |
+|---|---|---|---|---|
+| 0.3 | 138 | 41.5 | 0.724 / 0.672 | 222 |
+| 0.1 | 314 | 31.4 | 0.718 / 0.676 | 220 |
+| 0.03 | 1,060 | 31.8 | 0.719 / 0.680 | 287 |
+| 0.01 | 3,249 | 32.5 | 0.716 / 0.681 | 366 |
+
+The plateau scales as 1/ε, the three-weight law: r_j, v_j and ω grow together, and the inverse of their product's cube root falls roughly linearly in time. Gating arrives a nearly fixed time later. Over seven seeds at ε = 0.1, the time to the soft XOR has standard deviation over mean 0.73, and the further time to gating 0.23. The race model predicted both the soft stage (0.70 everywhere) and this contrast in spread.
+
+Columns here are given feature directions, there is one head, and there is no layer norm.
+
 ## What the examples suggest
 
 - **One unit type goes a long way.** Match a slot here against a slot there, and use the match to weight a third slot. This is close to RASP's select and aggregate, and to query, key and value composition in the transformer-circuits framework.
@@ -131,6 +170,7 @@ Plain Python 3, no dependencies. Each script prints its own setup, candidates an
     python3 orbit.py               # about 10 s
     python3 mess3.py               # about 15 s
     python3 self_inoculation.py    # about 15 s
+    python3 gd_rrxor.py            # about 20 s   (gradient descent, not a race)
 
 ## References
 
