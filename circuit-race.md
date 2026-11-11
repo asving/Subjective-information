@@ -20,21 +20,30 @@ This note gives a model that accounts for all three with nothing fitted. It then
 
 ## The mechanism in miniature
 
-The simplest object with a plateau is a chain of weights. Picture a network stripped down to one path: the input is the constant 1, each of k layers multiplies it by a single trainable number, and the output is the product w₁w₂⋯w_k. Those k numbers are the weights, and there is nothing else to train. Gradient descent adjusts them to make the output equal 1, under the loss ½(w₁⋯w_k − 1)², starting each weight at x₀ = 0.1.
+The simplest object with a plateau is a chain of weights.
 
-The gradient on one weight is the error times the product of the others:
+**The chain.** Let w_1, …, w_k be real numbers, the *weights*, and set
 
-    dw_i/dt = (1 − w₁⋯w_k) · (product of the other k − 1 weights)
+    output      f = w_1 · w_2 · … · w_k
+    loss        ℓ = ½ (f − 1)²
+    training    dw_i/dt = −∂ℓ/∂w_i = (1 − f) · ∏_{j ≠ i} w_j,        w_i(0) = x₀
 
-So a weight can grow only as fast as the others have already grown. While all of them are small, all of them grow slowly, and that is the plateau.
+This is a network stripped down to one path. The input is the constant 1, each of k layers multiplies it by one trainable number, and training tries to make the output 1. The last line says that a weight can grow only as fast as the others have already grown. While all of them are small, all of them grow slowly, and that is the plateau.
 
-For k = 2 this is exponential growth, and the wait is log(1/x₀). For k ≥ 3 the growth is slower at first, and the wait is about x₀^(2−k). In the chain the error stays near 1 until the end. With an error signal of size g in its place, the product reaches full size after
+**The wait.** Start all weights equal, so that they stay equal to a common value x, and replace the error 1 − f by a constant g. Then
 
-    h_k(x₀) / g       h_1 = 1 − x₀,    h_2 = log(1/x₀),    h_k = (x₀^(2−k) − 1) / (k − 2)  for k ≥ 3
+    dx/dt = g · x^(k−1),     and x reaches 1 at time    T = h_k(x₀) / g
+    h_1 = 1 − x₀,    h_2 = log(1/x₀),    h_k = (x₀^(2−k) − 1) / (k − 2)   for k ≥ 3
 
-Adam behaves differently. It divides each gradient by its recent size, so every weight moves about one learning rate per step however small its gradient is. The wait is then a distance to travel.
+In the chain the error is close to 1 until f stops being small, so T with g = 1 is the length of the plateau. For k = 2 the growth is exponential, and T is logarithmic in 1/x₀. For k ≥ 3 the growth starts slower, and T is a power of 1/x₀ that rises with k.
 
-The table gives the time until the product passes half its target, with all k weights started equal (`unit_price.py chain`).
+**Adam.** Write G for the gradient ∂ℓ/∂w of one weight. Adam keeps running averages of G and of G² and steps by their ratio:
+
+    m ← 0.9 m + 0.1 G,     v ← 0.999 v + 0.001 G²,     w ← w − η · m̂ / (√v̂ + 10⁻⁸)
+
+where m̂ and v̂ are m and v corrected for their start at zero. While G keeps its sign and changes slowly, m̂/√v̂ is close to ±1, so the weight moves about η per step however small G is. The wait is then the distance the weights must travel divided by η, and k drops out.
+
+The table gives the time, in steps times learning rate, until f passes ½ (`unit_price.py chain`).
 
 | k | h_k(0.1) | Plain gradient descent | Adam |
 |---|---|---|---|
@@ -47,29 +56,58 @@ Each extra weight costs plain gradient descent a factor of about 1/x₀. It cost
 
 ## From a chain to a circuit
 
-A circuit in a network is such a chain wherever its output is a product of weights along a path. To use this we need names for the pieces.
+A circuit in a network behaves like the chain wherever its output is a product of weights along a path. Here is the statement, followed by what its pieces mean in a network.
 
-**Units.** The residual stream has one column per feature and one row per position. A *unit* reads some columns and writes one. A head is a unit, a neuron is a unit, and so is a hand-written piece of circuit such as "multiply the current token by the previous one". A unit that reads another unit's column depends on it.
+**The model.** A *unit* u consists of a finite set F(u) of weights, its *factors*, and a function φ_u of the input, its *output shape*. It adds to the network's prediction the amount
 
-**Factors.** Each unit contributes a read and a write, and along a path from the input to the prediction these multiply, like the weights of the chain. We call them the path's factors. In the networks tested here each factor is a single number. In a wider network a read or a write is a vector, and the factor would be its size along the direction the unit uses; that case is not tested. The factors still at their initial size x₀ are the path's *dormant factors*, and k is their number. A unit whose factors have all grown is *active*.
+    ( ∏_{f ∈ F(u)} w_f ) · φ_u(input)
 
-**Gain.** The *gain* g of a dormant unit is the correlation of its output, at unit size, with the current prediction error. It plays the part of the error signal in the chain.
+Let δ(input) be the derivative of the loss with respect to the prediction, at the current network. The *gain* of u is
 
-The wait for a unit is then h_k(x₀)/g. The race is the alternation of Alternating Gradient Flows: dormant units accumulate gain, the first to finish becomes active, the active units refit, and the error they leave sets the gains for the next round.
+    g_u = −E[ δ · φ_u ]
 
-For a single neuron this is that paper's theory. The extension matters in a case the theory cannot reach. There, a neuron whose output has no correlation with the error never activates. But a head that only copies a token is such a unit, and networks learn them, because a later unit uses the copy. Seen as a path, the difficulty goes away: the head's weights are extra factors of the unit that reads it. Three consequences follow.
+To first order in the amounts added by units that are still small, the loss is L₀ − Σ_u g_u ∏_{f ∈ F(u)} w_f, and gradient descent on it is
 
-- **Bundles.** A unit that is useless alone is paid for inside the bundle that uses it.
-- **Depth multiplies.** Under plain gradient descent each dormant factor beyond the second multiplies the wait by about 1/x₀.
-- **Reuse is cheap.** A unit that reads active units pays only for its own factors. A new read on an active neuron has no wait.
+    dw_f/dt = Σ_{u : f ∈ F(u)} g_u · ∏_{f' ∈ F(u), f' ≠ f} w_f'
+
+For a single unit this is the chain with g_u in place of the error. So a unit with k factors, all starting at size x₀ with signs that make g_u ∏ w_f positive, becomes large at time h_k(x₀)/|g_u|.
+
+**Units in a network.** The residual stream has one column per feature and one row per position. A unit reads some columns and writes one. A head is a unit, a neuron is a unit, and so is a hand-written piece of circuit such as "multiply the current token by the previous one". Its output shape φ_u is what it would add to the prediction if all its factors were 1, with the units it reads held as they are.
+
+**Factors in a network.** Each unit on a path from the input to the prediction contributes a read and a write, and these are the factors that multiply. In the networks tested here each factor is a single number. In a wider network a read or a write is a vector, and the factor would be its size along the direction the unit uses; that case is not tested. Factors still at their initial size x₀ are *dormant*, and k from now on counts only those. A unit whose factors have all grown is *active*. Two units can share a factor, as when several neurons read one head; the sum over u in the last display is for that.
+
+**The race.** Dormant units follow the last display. The first to become large is active. The active units then refit, which changes δ and with it every gain, and the next round begins. This is the alternation of Alternating Gradient Flows, and for a single neuron the model is that paper's theory.
+
+The extension matters in a case that theory cannot reach. There, a neuron whose output has no correlation with the error has zero gain and never activates. But a head that only copies a token is such a unit, and networks learn them, because a later unit uses the copy. In the model the difficulty goes away: the head's weights are members of F(u) for the unit u that reads it. Three consequences follow.
+
+- **Bundles.** A unit that is useless alone is paid for inside the bundle that uses it, as extra factors.
+- **Depth multiplies.** Under plain gradient descent each dormant factor beyond the second multiplies the wait h_k(x₀)/g by about 1/x₀.
+- **Reuse is cheap.** A unit that reads active units pays only for its own factors, since the active ones no longer count towards k. A new read on an active neuron is k = 1 and has no plateau.
 
 ## The puzzle, answered
 
-Return to the transformer of the opening (`gd_rrxor.py`: one head, six ReLU neurons, every weight a scalar, all starting at scale ε).
+Return to the transformer of the opening. Tokens are x_t = ±1 at positions t = 1, …, 12, and the network is (`gd_rrxor.py`)
 
-**Which circuit comes first.** No single earlier token says anything about the next one, because any two tokens of a block are independent. The first useful circuit must combine two tokens. The shortest path that does so is a bundle: the head copies earlier tokens into a column, and a neuron reads that column together with the current token. It has three dormant factors: the head's write, the neuron's read of the copy, and the neuron's write. The neuron's read of the current token does not count, because a ReLU needs only its sign.
+    attention    α(t, ·) = softmax over t' ∈ {t, …, t−3} of   b[t − t'] + β · x_t · x_t'
+    head         A_t = ω · Σ_t' α(t, t') · x_t'
+    neuron j     n_j = ReLU( u_j · x_t + v_j · A_t + q_j[t] + c_j )            j = 1, …, 6
+    logit        z_t = Σ_j r_j · n_j + ρ_x · x_t + ρ_A · A_t + d[t] + bias
 
-**How long it waits, and why seeds differ.** Three factors give a wait of about 1/(g·ε). To do better than "about", we integrate the three-factor equations for all six neurons from the network's own initial weights. The gains come from the data and from the inputs on which each neuron starts out active; for seed 0 they are 0, 0.006, 0.023, 0, −0.023 and 0.011. Nothing is fitted (`unit_price.py plateau`).
+Every symbol other than x and t is one scalar weight, drawn from a Gaussian of scale ε. The loss is the log loss of predicting the next token from z_t, averaged exactly over all sequences and positions, and training is full-batch gradient descent.
+
+**Which circuit comes first.** No single earlier token says anything about the next one, because any two tokens of a block are independent. The first useful circuit must combine two tokens. The shortest path that does so runs through the head and one neuron. For neuron j it is the unit
+
+    factors         F = { ω, v_j, r_j }
+    output shape    φ_j = [ u_j · x_t + q_j[t] + c_j > 0 ] · ā_t,       ā_t = mean of those of x_t, …, x_(t−3) that exist
+    gain            g_j = E[ (y − ½) · φ_j ],                          y = 1 if the next token is +1, else 0
+
+and the general equations become
+
+    dr_j/dt = g_j · v_j · ω,      dv_j/dt = g_j · r_j · ω,      dω/dt = Σ_j g_j · r_j · v_j
+
+The head copies earlier tokens into the column A, which is useless alone, and the neuron reads the copy: a bundle with three factors. The neuron's read u_j of the current token is not a factor. It enters φ_j only through the bracket, which says on which inputs the neuron starts out active, and the bracket's overlap with ā_t is what makes φ_j carry the product of the last two tokens.
+
+**How long it waits, and why seeds differ.** With three factors the wait is about h_3(ε)/g, or 1/(g·ε). To do better than "about", we integrate the three displayed equations for all six neurons from the network's own initial weights. The gains are computed from the data and the initial brackets; for seed 0 they are 0, 0.006, 0.023, 0, −0.023 and 0.011. Nothing is fitted (`unit_price.py plateau`).
 
 | Initial scale ε | Actual end of plateau, 7 seeds | Predicted / actual |
 |---|---|---|
@@ -78,24 +116,28 @@ Return to the transformer of the opening (`gd_rrxor.py`: one head, six ReLU neur
 
 The spread across seeds is the spread in initial weights and gains. The equations keep only the leading order in ε, and the fit is looser at 0.1.
 
-**Why the rule is half wrong.** Nothing in the bundle reads position, so its output is the same function of the last two tokens everywhere. The network predicts the XOR with probability about 0.72 at XOR positions and 0.68 elsewhere. A rule of this kind still pays: at its best it brings the loss from 1.000 to 0.892, against an optimum of 0.636.
+**Why the rule is half wrong.** Nothing in φ_j reads position, so the bundle computes the same function of the last two tokens everywhere. The network predicts the XOR with probability about 0.72 at XOR positions and 0.68 elsewhere. A rule of this kind still pays: at its best it brings the loss from 1.000 to 0.892, against an optimum of 0.636.
 
-**Why the correction runs on a different clock.** The correction is a read of position on a neuron that is already active. That is one new factor on an active unit, so it has no plateau. It follows 220 to 366 time units after the first drop for ε from 0.3 to 0.01, while the plateau itself grows from 138 to 3,249.
+**Why the correction runs on a different clock.** The correction is growth in q_j[t], the read of position on a neuron that is already active. That is one new factor on an active unit, so k = 1 and there is no plateau. It follows 220 to 366 time units after the first drop for ε from 0.3 to 0.01, while the plateau itself grows from 138 to 3,249.
 
 ## The optimiser people use
 
 A reader will object that nobody trains transformers with plain gradient descent. The chain already says what to expect from Adam: the wait should depend neither on k nor on ε.
 
-It does not. Under Adam with learning rate 0.01 (`unit_price.py adam`), the same transformer leaves its plateau at step 54 to 56 for ε from 0.3 to 0.01, a range over which the wait under plain gradient descent grows more than twentyfold. Seven seeds give 46 to 68 steps, apart from one that takes over a thousand. The half-wrong stage is still there but shorter.
+It does not. Under Adam with η = 0.01 (`unit_price.py adam`), the same transformer leaves its plateau at step 54 to 56 for ε from 0.3 to 0.01, a range over which the wait under plain gradient descent grows more than twentyfold. Seven seeds give 46 to 68 steps, apart from one that takes over a thousand. The half-wrong stage is still there but shorter.
 
-This changes what decides the order of circuits. If every unit travels at the same speed whatever its k, the unit that matters first is the one with the cleanest gradient: the largest gain relative to its spread from token to token. That ranking has no prices and no free parameter.
+This changes what decides the order of circuits. If every unit travels at the same speed whatever its k, the unit that matters first is the one whose gradient is cleanest. Precisely, for a candidate unit with output shape φ, with p the current predicted probability and y the outcome, define
 
-We tried it on a harder version of the task, RRXOR started at a random phase, where a predictor has to infer the phase from the history (`unit_price.py order`).
+    score(φ) = ( E[ (y − p) · φ ] )² / E[ p (1 − p) · φ² ]
+
+The numerator is the squared gain. The denominator is the token-to-token variance of the quantity (y − p)·φ whose mean is the gain. The score is therefore a squared signal-to-noise ratio per token, and it has no prices and no free parameter.
+
+We tried this ranking on a harder version of the task, RRXOR started at a random phase, where a predictor has to infer the phase from the history (`unit_price.py order`).
 
 - **Stage 1.** The XOR head, current token times previous token, ranks first of 3,738 candidate units and linked pairs.
 - **Stage 2.** A bundle ranks first of 17,415: a slot marking where the XOR rule was violated, plus the XOR multiplied by an OR of violations every third position back. This is the circuit reported for trained transformers (A.G.). A lookup on its slots scores 0.8245 bits per token against an optimum of 0.8234.
 
-Plain gradient descent would order things differently. By a rough count the bundle has ten factors, and a cheap alternative, the token two back, has four. The bundle would come first only if weights started above 0.81 of their full size. So the order seen in trained transformers is itself evidence for the flat price.
+Plain gradient descent would order things differently. By a rough count the bundle has ten factors, and a cheap alternative, the token two back, has four. Comparing h_10(x₀)/g with h_4(x₀)/g for the two gains, the bundle comes first only if x₀ is above 0.81. So the order seen in trained transformers is itself evidence for the flat price.
 
 **How we got here.** This ranking was not the starting point. We first ran the race with hand-set prices of about 3 bits per column a unit names, under two rules: a wait proportional to the price, and a wait exponential in it. On random-start RRXOR the first rule put the phase circuit after 465 tokens, right behind the XOR, and the second after 75,000,000. Only the first matches what networks do, and at the time we could not say why. The chain says why: the exponential rule is the multiplying law of plain gradient descent, and the proportional rule is far closer to Adam's flat price.
 
@@ -115,13 +157,37 @@ The half-wrong XOR is one instance of a pattern in this table: a cheap rule is a
 
 Everything so far is on tasks we chose. The leap staircase is an established result about what gradient descent learns and when, and it is stated in terms close to ours.
 
-Abbe, Boix-Adserà and Misiakiewicz (2023) train a two-layer network on targets that are sums of monomials in a few coordinates of x ∈ {+1, −1}^d. A monomial that brings in L new coordinates is a *leap* of L. They find that a leap of L takes about d^(L−1) steps of online SGD, and that a staircase such as z₁ + z₁z₂ + z₁z₂z₃ is learnt fast because each term brings in one coordinate.
+**The setting** (Abbe, Boix-Adserà and Misiakiewicz, 2023). The input x is uniform on {+1, −1}^d. The target is y = Σ_S c_S ∏_{i ∈ S} x_i, a sum over a few sets S of coordinates. The learner is
 
-In our terms a unit is a pair (neuron, monomial). Its dormant factors are the neuron's output weight and its first-layer weights on the new coordinates, so a leap of L is L + 1 factors. Its gain is the monomial's coefficient times the mean L-th derivative of the activation. The staircase is reuse. `leap.py` tests this, first with exact gradients over all 2^d inputs and then in the paper's own regime of fresh samples.
+    network     f(x) = Σ_j a_j · σ( ⟨w_j, x⟩ + b_j ),        σ(z) = 1 / (1 + e^(0.5 − z))
+    loss        ½ E ( f(x) − y )²
 
-**The plateau, and a correction.** The factor equations alone put the end of the plateau too early, at as little as 0.27 of the actual time for L = 4. What they miss is particular to sigmoid neurons. Such a neuron emits output before it has learnt anything, that output is not part of the target, and the loss pulls back the weights that produce it. Adding this pull-back, which has no free parameter, gives the last column. We found it after the failure; it was not predicted.
+A term whose set S brings in L coordinates not used by earlier terms is a *leap* of L. The paper finds that a leap of L takes about d^(L−1) steps of online SGD, and that a staircase such as x_1 + x_1 x_2 + x_1 x_2 x_3 is learnt fast because each term brings in one coordinate.
 
-| Neurons, d | L | Actual end of plateau, 3 seeds | Factors alone / actual | With pull-back / actual |
+**The unit.** For one term with set S of size L and coefficient c, neuron j gives the unit
+
+    factors         F = { a_j } ∪ { w_ji : i ∈ S }                              L + 1 factors
+    output shape    φ_j = σ^(L)( Σ_{i ∉ S} w_ji x_i + b_j ) · ∏_{i ∈ S} x_i     σ^(L) the L-th derivative
+    gain            g_j = c · E[ σ^(L)( Σ_{i ∉ S} w_ji x_i + b_j ) ]
+
+and the general equations become
+
+    da_j/dt = g_j · ∏_{i ∈ S} w_ji,        dw_ji/dt = a_j · g_j · ∏_{l ∈ S, l ≠ i} w_jl
+
+So a leap of L is L + 1 dormant factors, and the staircase is reuse: after one term is learnt, its coordinates are active and the next term has one dormant factor per neuron. `leap.py` tests this, first with exact gradients over all 2^d inputs and then in the paper's own regime of fresh samples.
+
+**The plateau, and a correction.** These equations alone put the end of the plateau too early, at as little as 0.27 of the actual time for L = 4. To see what they miss, expand the loss:
+
+    ½ E (f − y)² = ½ E y² − E[ y f ] + ½ E f²
+
+The unit equations are gradient descent on the middle term, to leading order in the w_ji. The last term is the network's own output. Write V for the matrix of the w_ji with i ∈ S, and σ_j for σ(Σ_{i ∉ S} w_ji x_i + b_j). To second order in V,
+
+    ½ E f² = ½ aᵀ K_V a,        K_V = K + Q ∘ V Vᵀ + ½ (N R + Rᵀ N)
+    K_jl = E[ σ_j σ_l ],    Q_jl = E[ σ'_j σ'_l ],    R_jl = E[ σ''_j σ_l ],    N = diag( |V_1|², …, |V_M|² )
+
+with ∘ the entrywise product and V_j the j-th row of V. The *pull-back* is gradient descent on this term too. In words: a sigmoid neuron emits output before it has learnt anything, that output is not part of the target, and the loss pulls back the weights that produce it. Nothing in K_V is fitted. We found the pull-back after the failure; it was not predicted.
+
+| Neurons, d | L | Actual end of plateau, 3 seeds | Unit equations / actual | With pull-back / actual |
 |---|---|---|---|---|
 | 16, 10 | 2 | 189 to 283 | 0.76 to 0.86 | 1.02 to 1.05 |
 | 16, 10 | 3 | 560 to 1,979 | 0.59 to 0.79 | 0.96 to 1.00 |
@@ -130,24 +196,26 @@ In our terms a unit is a pair (neuron, monomial). Its dormant factors are the ne
 | 64, 8 | 3 | 376 to 671 | 0.80 to 0.86 | 0.94 to 0.96 |
 | 64, 8 | 4 | 2,957 to 5,286 | 0.64 to 0.69 | 0.86 to 0.91 |
 
-**The staircase is reuse.** Under plain gradient descent the staircase reaches z₁z₂z₃ at time 56 to 66. The monomial z₁z₂z₃ alone takes 558 to 854. Each step of the staircase adds one factor to neurons that are already active.
+Here the target is the single term x_1 ⋯ x_L, the w_ji start as Gaussians of scale 0.1, the a_j of scale 0.01 and the b_j at zero, the learning rate is 0.2, and the plateau ends when the loss is 5% under ½ E y².
+
+**The staircase is reuse.** Under plain gradient descent the staircase x_1 + x_1 x_2 + x_1 x_2 x_3 reaches its last term at time 56 to 66. The term x_1 x_2 x_3 alone takes 558 to 854.
 
 **Adam with exact gradients is nearly flat.** The plateau lasts 29 to 82 steps for L = 2, 3 and 4 from initial scales 0.3 and 0.1. The staircase gives Adam no advantage: both targets take about 80 to 120 steps. There is one exception, at L = 4 from scales 0.03 and 0.01, where the plateau lasts 146 to 287 steps.
 
-**Fresh samples bring the dependence back.** The paper's d^(L−1) is a statement about online SGD, where every step sees new data, so this is the comparison that matters. The table gives the median steps over three seeds until the test loss is 20% under that of predicting zero, with 64 neurons and batch 32 (`leap.py online`).
+**Fresh samples bring the dependence back.** The paper's d^(L−1) is a statement about online SGD, where every step sees new data, so this is the comparison that matters. Each step draws a fresh batch of 32 inputs. There are 64 neurons, the w_ji start at scale 1/√d and the a_j at 0.1, and the learning rate is 0.1 for SGD and 0.003 for Adam. The table gives the median over three seeds of the number of steps until the loss on 4,096 held-out inputs is 20% under ½ E y² (`leap.py online`).
 
 | Target | Optimiser | d = 16 | 32 | 64 | 128 | 256 | 512 |
 |---|---|---|---|---|---|---|---|
-| z₁z₂ | SGD | 600 | 1,400 | 2,100 | 3,600 | 9,300 | |
-| z₁z₂ | Adam | 400 | 500 | 600 | 900 | 1,500 | |
-| z₁z₂z₃ | SGD | 1,400 | 3,000 | 6,700 | 178,700 | 1,023,900 | |
-| z₁z₂z₃ | Adam | 500 | 700 | 1,300 | 3,300 | 120,700 | about 2,700,000 |
+| x_1 x_2 | SGD | 600 | 1,400 | 2,100 | 3,600 | 9,300 | |
+| x_1 x_2 | Adam | 400 | 500 | 600 | 900 | 1,500 | |
+| x_1 x_2 x_3 | SGD | 1,400 | 3,000 | 6,700 | 178,700 | 1,023,900 | |
+| x_1 x_2 x_3 | Adam | 500 | 700 | 1,300 | 3,300 | 120,700 | about 2,700,000 |
 
 At leap 2, SGD's steps grow as d^1.07 from d = 64 to 256, which is the paper's d^(L−1), and Adam's as d^0.66. At leap 3 both rise far more steeply than d² at these sizes, SGD between d = 64 and 128 and Adam one doubling later. At d = 512 one Adam seed of three did not finish within 3,000,000 steps, and at d = 1,024 none did.
 
 Larger batches shorten the wait for both. At d = 128 and leap 3, Adam takes 10,600, 3,300, 1,100 and 500 steps at batch 8, 32, 128 and 512, and SGD takes 276,500, 178,700, 22,200 and 26,500.
 
-Our reading is that Adam can rescale a small gradient but cannot remove its noise. With fresh samples the gradient of a dormant unit is a small signal, a product of L small weights, under noise that does not shrink with it. We did not measure this directly.
+Our reading is that Adam can rescale a small gradient but cannot remove its noise. With fresh samples the gradient of a dormant factor is a small signal, g_j times a product of L small weights, under noise that does not shrink with it. We did not measure this directly.
 
 So the three statements of the opening stand as follows. The multiplying law of plain gradient descent holds in both settings: it predicts the plateau to within 3% for the transformer at ε = 0.01, and to within 14% for the leap staircase once the pull-back is included. The flat price of Adam holds, approximately, with clean gradients. With noisy gradients in high dimension neither optimiser escapes the cost of a leap, and at leap 3 Adam is ahead by about one doubling of the dimension.
 
@@ -156,7 +224,7 @@ So the three statements of the opening stand as follows. The multiplying law of 
 - **Units are written by hand.** The model says when a given unit appears. It does not find the units.
 - **No real transformer has been compared.** The networks here are a one-layer toy with scalar weights and a two-layer network. Layer norm and weight decay are untested.
 - **The noisy regime is measured, not modelled.** The sharp rise at leap 3 comes from three seeds and one batch size per dimension, and the model has no law for it.
-- **Adam's flat price is approximate.** It rises at leap 4 from small weights, and one toy-transformer seed in seven was slow. The cause of the rise is not identified; it is not Adam's small-gradient floor.
+- **Adam's flat price is approximate.** It rises at leap 4 from small weights, and one toy-transformer seed in seven was slow. The cause of the rise is not identified; it is not the 10⁻⁸ in Adam's denominator.
 - **The five hand-priced races have not been rerun with derived waits.** Factor counts for hand-written units are rough, since a wiring does not say how many weights implement it.
 
 ## Reproducing

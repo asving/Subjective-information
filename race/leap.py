@@ -102,8 +102,11 @@ def predicted(net, X, S, own_output=True, drop=0.95, tmax=1e7):
         da_j/dt  = g_j * prod_i V_ji                      g_j = mean L-th derivative of the activation
         dV_ji/dt = a_j * g_j * prod_{l != i} V_jl
     With own_output, the network's own output is kept to second order in V. It is not part of the target, so
-    the loss pulls a and V back:  da -= K a,  dV_ji -= a_j (Q diag(a) V)_ji + a_j (R a)_j V_ji,  where
-    K = E[s s'], Q = E[s' s''] of first derivatives and R = E[s'' s] are fixed matrices over pairs of neurons."""
+    the loss pulls a and V back. Write s_j for neuron j's activation with its weights on the monomial's coordinates
+    set to zero, and K_jl = E[s_j s_l], Q_jl = E[s_j' s_l'], R_jl = E[s_j'' s_l] (primes are derivatives). Then
+    (1/2) E f^2 = (1/2) a^T K_V a to second order in V, with K_V = K + Q o (V V^T) + (N R + R^T N)/2 and
+    N = diag(|V_j|^2), and the pull-back is gradient descent on that term:
+        da -= K_V a,     dV_ji -= a_j (Q diag(a) V)_ji + a_j (R a)_j V_ji."""
     L, n = len(S), len(X)
     W0 = net.W.copy()
     W0[:, S] = 0
