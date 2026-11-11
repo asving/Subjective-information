@@ -144,6 +144,10 @@ The plateau scales as 1/ε, the three-weight law: r_j, v_j and ω grow together,
 
 Columns here are given feature directions, there is one head, and there is no layer norm.
 
+**Reads and writes.** A neuron reads the stream through one number and writes one direction. Forward, its write cannot depend on any distinction its read ignores. Backward, the dual holds exactly: the gradient on the write is the error signal averaged over the inputs where the neuron is active, and does not involve the write itself; the gradient on the read sees the error only through its component along the write.
+
+`torch_read_write.py` measures the resulting order on a real one-layer transformer (width 32, 64 neurons, Adam, small initial weights, five seeds). The leading neurons' writes come within cosine 0.9 of their final directions at steps 75, 150, 98, 309 and 68; their reads at steps 185, 228, 100, 315 and 301. Writes are never later and are clearly earlier in three seeds. The final writes all lie along the logit direction (cosine 0.89 to 0.99), while the reads spread over several directions. Neither group carries the gain alone: putting all reads, or all writes, back to their initial values returns the loss to 1.000 at every stage.
+
 ## What the examples suggest
 
 - **One unit type goes a long way.** Match a slot here against a slot there, and use the match to weight a third slot. This is close to RASP's select and aggregate, and to query, key and value composition in the transformer-circuits framework.
@@ -171,6 +175,7 @@ Plain Python 3, no dependencies. Each script prints its own setup, candidates an
     python3 mess3.py               # about 15 s
     python3 self_inoculation.py    # about 15 s
     python3 gd_rrxor.py            # about 20 s   (gradient descent, not a race)
+    python torch_read_write.py     # about 30 s   (needs PyTorch)
 
 ## References
 
