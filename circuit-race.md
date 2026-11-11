@@ -20,15 +20,21 @@ This note gives a model that accounts for all three with nothing fitted. It then
 
 ## The mechanism in miniature
 
-The simplest object with a plateau is a product of weights. Fit the product of k weights to the constant 1, starting each weight at x₀ = 0.1. The gradient on each weight is the error times the product of the others, so a weight can grow only as fast as the others have already grown.
+The simplest object with a plateau is a chain of weights. Picture a network stripped down to one path: the input is the constant 1, each of k layers multiplies it by a single trainable number, and the output is the product w₁w₂⋯w_k. Those k numbers are the weights, and there is nothing else to train. Gradient descent adjusts them to make the output equal 1, under the loss ½(w₁⋯w_k − 1)², starting each weight at x₀ = 0.1.
 
-For k = 2 this is exponential growth, and the wait is log(1/x₀). For k ≥ 3 the growth is slower at first, and the wait is about x₀^(2−k). In general, if g is the size of the error signal, the product reaches full size after
+The gradient on one weight is the error times the product of the others:
+
+    dw_i/dt = (1 − w₁⋯w_k) · (product of the other k − 1 weights)
+
+So a weight can grow only as fast as the others have already grown. While all of them are small, all of them grow slowly, and that is the plateau.
+
+For k = 2 this is exponential growth, and the wait is log(1/x₀). For k ≥ 3 the growth is slower at first, and the wait is about x₀^(2−k). In the chain the error stays near 1 until the end. With an error signal of size g in its place, the product reaches full size after
 
     h_k(x₀) / g       h_1 = 1 − x₀,    h_2 = log(1/x₀),    h_k = (x₀^(2−k) − 1) / (k − 2)  for k ≥ 3
 
 Adam behaves differently. It divides each gradient by its recent size, so every weight moves about one learning rate per step however small its gradient is. The wait is then a distance to travel.
 
-The table gives the time until the product passes half its target (`unit_price.py chain`).
+The table gives the time until the product passes half its target, with all k weights started equal (`unit_price.py chain`).
 
 | k | h_k(0.1) | Plain gradient descent | Adam |
 |---|---|---|---|
@@ -45,7 +51,7 @@ A circuit in a network is such a chain wherever its output is a product of weigh
 
 **Units.** The residual stream has one column per feature and one row per position. A *unit* reads some columns and writes one. A head is a unit, a neuron is a unit, and so is a hand-written piece of circuit such as "multiply the current token by the previous one". A unit that reads another unit's column depends on it.
 
-**Factors.** Each unit contributes a read and a write, and along a path from the input to the prediction these multiply. The weights on the path that are still at their initial size x₀ are its *dormant factors*, and k is their number. A unit whose factors have all grown is *active*.
+**Factors.** Each unit contributes a read and a write, and along a path from the input to the prediction these multiply, like the weights of the chain. We call them the path's factors. In the networks tested here each factor is a single number. In a wider network a read or a write is a vector, and the factor would be its size along the direction the unit uses; that case is not tested. The factors still at their initial size x₀ are the path's *dormant factors*, and k is their number. A unit whose factors have all grown is *active*.
 
 **Gain.** The *gain* g of a dormant unit is the correlation of its output, at unit size, with the current prediction error. It plays the part of the error signal in the chain.
 
