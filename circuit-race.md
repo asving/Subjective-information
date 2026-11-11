@@ -164,6 +164,57 @@ The correspondence with this note is close.
 
 The differences run both ways. Their neurons find their own direction by gradient ascent on the utility, so there is no menu of wirings and no made-up price, and they prove convergence to gradient flow for diagonal linear networks. They treat two-layer networks only, where neurons interact only through the residual; a unit with no utility of its own can never activate, so parents and bundles lie outside the framework. Twice the neuron is not their unit either: for fully connected linear networks they switch to singular modes, and for modular addition they activate a group of neurons per frequency.
 
+## The price of a composite unit
+
+The prices in the examples are made up. A price can instead be derived by decomposing the unit into the weights that implement it. `unit_price.py` prints every number in this section.
+
+**The rule.** A unit is a path of weights that multiply: a head's write, the read of the neuron that takes it, that neuron's write. Each unit on the path contributes a read and a write. The path's *dormant factors* are the weights still at their initial size x₀; say there are k. Its *gain* g is the correlation of its output, at unit size, with the current prediction error (the utility of Alternating Gradient Flows). Under plain gradient descent each factor grows at g times the product of the others, so the unit reaches full size after
+
+    h_k(x₀) / g       h_1 = 1 − x₀,    h_2 = log(1/x₀),    h_k = (x₀^(2−k) − 1) / (k − 2)  for k ≥ 3
+
+The price is h_k(x₀), and the evidence is the gain accumulated over time. For one neuron this is the threshold of Alternating Gradient Flows. Applied to a path through several units it covers what that paper leaves out.
+
+- **Bundles.** A parent that is useless alone is paid for inside the bundle, as extra factors.
+- **Depth multiplies.** Each dormant factor beyond the second multiplies the wait by about 1/x₀. The made-up "3 bits per column named" is the logarithm of this, with x₀ = 1/8.
+- **Reuse is cheap.** A unit that reads units already on pays only for its own factors. A read and a write give a logarithmic wait. One new read on an active neuron, such as a position gate, gives no wait.
+- **Width does not cost.** In the same equations, m equal neurons sharing one head shorten the wait by √m.
+
+**A chain.** A product of k weights, each starting at 0.1, fitted to a constant. The table gives the time until the product passes half its target.
+
+| k | h_k(0.1) | Plain gradient descent | Adam |
+|---|---|---|---|
+| 1 | 0.9 | 0.6 | 0.43 |
+| 2 | 2.3 | 2.3 | 0.54 |
+| 3 | 9.0 | 9.2 | 0.56 |
+| 4 | 49.5 | 49.8 | 0.58 |
+| 6 | 2,499.7 | 2,500.1 | 0.61 |
+
+**The toy transformer.** The first circuit of `gd_rrxor.py` is a bundle. The head copies earlier tokens, which is useless alone, and a neuron reads the copy. It has three dormant factors: ω, v_j and r_j. The neuron's read of the current token enters only through its sign. The gain of neuron j is the correlation of (target − ½) with the mean of the attended tokens over the inputs where the neuron starts out active; for seed 0 the six gains are 0, 0.006, 0.023, 0, −0.023 and 0.011. Integrating the three-factor equations from the network's own initial weights predicts when the plateau ends. Nothing is fitted.
+
+| Initial scale | Seeds | Actual end of plateau | Predicted / actual |
+|---|---|---|---|
+| 0.01 | 7 | 2,159 to 13,144 | 0.97 to 1.02 |
+| 0.1 | 7 | 244 to 1,408 | 0.74 to 1.33 |
+
+The spread across seeds, which the made-up prices could not address, is the spread in initial weights and gains.
+
+**Adam changes the law.** Adam moves each weight by about one learning rate per step, whatever the size of its gradient. The wait becomes a distance to travel and no longer depends on k or x₀ (last column of the chain table). In the toy transformer under Adam, with learning rate 0.01:
+
+- **Initial scale.** The loss passes 0.95 at steps 54, 56, 55, 54 and 72 for scales 0.3, 0.1, 0.03, 0.01 and 0.001.
+- **Seeds.** At scale 0.1 the seven seeds give 46 to 56 steps. At scale 0.01 six seeds give 51 to 68 and one takes over a thousand.
+- **Batch size.** The wait grows as the batch shrinks: about 52, 60, 81, 119 and 203 steps for the full batch and for 64, 16, 4 and 1 sequences per step. The signal-to-noise ratio of the gradient now matters.
+- **The soft stage is shorter.** It is still visible: confidence in the XOR at non-XOR positions peaks at 0.62 to 0.65. But XOR positions are already ahead by then (0.74 to 0.79), and the loss passes 0.80 some 30 to 100 steps after it passes 0.95.
+
+**A race with no prices.** If prices are flat, candidates are ordered by the signal-to-noise ratio of their gradient: the gain divided by its spread per token. On random-start RRXOR this ranking has no free parameter.
+
+- **Stage 1.** The XOR head ranks first of 3,738 candidates.
+- **Stage 2.** The reported phase circuit (violation slot plus XOR times OR of violations) ranks first of 17,415. The cheap trick, the token two back, has 105 candidates above it.
+- **The multiplying law disagrees.** By a rough count the phase circuit has ten factors and the trick four. The phase circuit would come first only if weights started above 0.81 of their full size.
+
+If the reported networks were trained with Adam, this would explain the earlier finding. The full-attention rule is close to a flat price and fitted. The search-limited rule is the multiplying law and did not.
+
+Not tested: bundles deeper than three factors in a network, layer norm, weight decay, and any real transformer. The factor counts for race units are rough, since a wiring does not say how many weights implement it.
+
 ## What the examples suggest
 
 - **One unit type goes a long way.** Match a slot here against a slot there, and use the match to weight a third slot. This is close to RASP's select and aggregate, and to query, key and value composition in the transformer-circuits framework.
@@ -173,9 +224,9 @@ The differences run both ways. Their neurons find their own direction by gradien
 
 ## What is not established
 
-- **Prices and primitives are chosen by hand.** Orderings that hinge on them are not predictions. Examples: whether the gated RRXOR circuit enters in one step (it does if gating costs under 22.7 bits; here 18.8), and whether Mess3 starts with a plain mean or a recency-weighted one.
+- **Prices and primitives are chosen by hand.** The section on the price of a composite unit derives prices, but the five examples have not been rerun with them. Orderings that hinge on the made-up prices are not predictions. Examples: whether the gated RRXOR circuit enters in one step (it does if gating costs under 22.7 bits; here 18.8), and whether Mess3 starts with a plain mean or a recency-weighted one.
 - **Only some results were blind.** The soft XOR and the orbit circuit were computed before the trained result was known. The RRXOR phase circuit was found after the language was widened to let heads read written slots, and self-inoculation was run with the post in hand.
-- **No timings have been checked.** The race gives an order and relative waits. Nothing here has been compared with a training curve.
+- **Timings are checked only on the toy transformer.** The derived price predicts its plateau. Nothing here has been compared with a training curve from a real transformer.
 - **The search is shallow.** Pairs are searched only at the first one or two stages. The sizes are small (12 tokens, dimension 4, 7-token contexts).
 - **The unit simplifies attention in three ways.** In a transformer the position pattern and the content match are two terms of one learned score, the score passes through a softmax, and the pool is always a weighted mean. Here the pattern is chosen from a menu, the match multiplies the output directly, and the OR is a separate pool, standing for the sharp limit of the softmax.
 - **Missing primitives.** There is no exact solve or normalisation, no recursion, and no model of an MLP as a lookup table.
@@ -191,6 +242,7 @@ Plain Python 3, no dependencies. Each script prints its own setup, candidates an
     python3 mess3.py               # about 15 s
     python3 self_inoculation.py    # about 15 s
     python3 gd_rrxor.py            # about 20 s   (gradient descent, not a race)
+    python3 unit_price.py          # about 1 min  (derived prices; imports gd_rrxor.py and rrxor_random.py)
     python torch_read_write.py     # about 30 s   (needs PyTorch)
 
 ## References
