@@ -12,7 +12,7 @@ Here is the case this note follows. The data are twelve tokens R R X R R X …, 
 - **It learns a rule that is half wrong.** The first circuit predicts the XOR of the last two tokens at every position, including the positions where the next token is a coin flip.
 - **It corrects the rule on a different clock.** Restricting the prediction to XOR positions follows a few hundred time units later, however long the first wait was.
 
-This note gives a model that accounts for all three with nothing fitted. It then asks how far the model carries: to the optimiser people actually use, and to a setting from the literature.
+This note gives a model that accounts for all three with nothing fitted. It then asks how far the model carries: to two circuits growing in one network, to the optimiser people actually use, and to a setting from the literature.
 
 **Where this sits.** Alternating Gradient Flows (Kunin, Marchetti et al., 2025) describes training as dormant neurons accumulating evidence until one activates. We take that alternation and extend it from single neurons to circuits whose parts depend on each other. We then test the result on the leap staircase of Abbe, Boix-Adserà and Misiakiewicz (2023).
 
@@ -138,7 +138,38 @@ The attention pattern starts uniform, so the query and key matrices are not on t
 | 0.25 | 22,289, 25,382, 41,049 | 3.97 | 65 to 67 |
 | 0.18 | 82,864 (one seed) | 4.00 | 72 to 74 |
 
-The exponent climbs to 4 as s shrinks. The last column belongs to the next section.
+The exponent climbs to 4 as s shrinks. The last column belongs to the section on Adam.
+
+## Two circuits at once
+
+So far one kind of circuit grew alone. A race needs more than that: when two different circuits grow in the same network, the model has to say how each changes the other's wait. `unit_race.py` runs the model's equations as they stand, for any list of units. We test it where the network itself can check the answer.
+
+**The task.** Take the same data, and let the first coin of each block repeat the first coin of the previous block with probability ½ + s. The token two back now carries information about the next token, and the toy transformer has a second circuit:
+
+    copy        factors { ρ_A, ω }          output shape ā_t          gain E[ (y − ½) · ā_t ] = 0.076 · s
+    soft XOR    factors { ω, v_j, r_j }     output shape φ_j          as in the last section
+
+The copy circuit is the head's uniform average, read directly by the output. It has two factors and a small gain, and it shares the head's write ω with the XOR bundle.
+
+**What the model says.** The copy circuit has k = 2, so it grows first, after about log(1/ε)/g. Once ω is large, the XOR bundle has two dormant factors where it had three, and its wait falls from about 1/(g·ε) to about log(1/ε)/(g·ω). A weak circuit should therefore bring a strong one forward, and by more the smaller ε is.
+
+**The race.** The variables are the factors, the prediction is Σ_u ( ∏_{f ∈ F(u)} w_f ) · φ_u, and the factors follow gradient flow on the exact loss, starting from the network's own initial weights. The menu holds only the two kinds of circuit above: seven units and fourteen factors, where the network has 117 weights. The table is for ε = 0.01 and three seeds. "The XOR appears" means that the probability given to the XOR at XOR positions first passes 0.52.
+
+| s | Network: ω passes 0.3 | Network: the XOR appears | Sooner than at s = 0 | Race / network, ω | Race / network, XOR |
+|---|---|---|---|---|---|
+| 0 | 3,154, 7,386, 2,043 | 3,230, 7,464, 2,131 | | 0.98 to 1.01 | 0.98 to 1.03 |
+| 0.1 | 525, 800, 820 | 717, 1,039, 992 | 4.5, 7.2, 2.1 times | 1.05 to 1.25 | 1.00 to 1.25 |
+| 0.25 | 198, 302, 336 | 406, 556, 538 | 8.0, 13.4, 4.0 times | 1.01 to 1.05 | 0.94 to 1.38 |
+| 0.4 | 122, 186, 212 | 274, 377, 416 | 11.8, 19.8, 5.1 times | 1.00 to 1.03 | 0.83 to 1.59 |
+
+The weak circuit brings the XOR forward by a factor of 2 to 20, and seven units say when. Before the run we predicted a factor of at least 3 for s ≥ 0.1, which held in eight runs of nine.
+
+**What fixed shapes miss.** Two larger menus locate the error. The first holds every first-order unit of the network, with each neuron's on-pattern frozen as it was at the start. The second recomputes the on-patterns, which makes it the network itself with the attention pattern held uniform.
+
+- **A circuit sharpens once it is active.** With frozen on-patterns the XOR appears and then stays weak. Within four times the network's own time, its probability fails to reach 0.6 in 8 of 12 runs with seven units and in 4 of 12 with every first-order unit. In the network it always reaches 0.6. With on-patterns recomputed it does in all 12, and the XOR appears at 0.85 to 1.02 of the network's time. Once the head's output is large it enters each neuron's on-pattern, and the circuit the neuron carries improves.
+- **The two circuits also compete.** They share one head, and the copy circuit turns its attention to the token two back. When the XOR appears, the head's weight on the token one back is 0.31 to 0.33 at s = 0 and 0.08 to 0.10 at s = 0.4, where uniform attention gives 0.25. No menu here has a unit for the attention pattern, and at s = 0.4 the third one reaches a strong XOR early, at 0.74 to 0.82 of the network's time. We did not predict this.
+
+So the equations for shared factors carry through a second circuit. What a race over hand-written units still needs is a rule for what a unit becomes once it is active.
 
 ## The optimiser people use
 
@@ -282,6 +313,7 @@ So the three statements of the opening stand as follows. The multiplying law of 
 - **Real transformers are compared only from outside.** We checked a scaling exponent in one and the loss levels another passes through. No circuit was read out of their weights. Weight decay is untested, and layer norm appears only in the four-layer run.
 - **The noisy laws are partial.** Adam's dependence on batch size is measured and explained. Its exponent in d under noise is not derived. The account of the steep rise by the pull-back rests on three observations at one leap and two dimensions.
 - **Adam's flat price is approximate.** It rises at leap 4 from small weights, and one toy-transformer seed in seven was slow. The cause of the rise is not identified; it is not the 10⁻⁸ in Adam's denominator.
+- **The race in time is tested on one task.** It has two kinds of circuit in one toy network under plain gradient descent. Its units keep their shapes, so it times a circuit's arrival and not what the circuit grows into, and it has no unit for an attention pattern.
 - **The five hand-priced races have not been rerun with derived waits.** Factor counts for hand-written units are rough, since a wiring does not say how many weights implement it.
 
 ## Reproducing
@@ -291,6 +323,7 @@ Plain Python 3 unless noted. Each script prints its own setup and results.
     cd race
     python3 unit_price.py          # about 1 min   the chain, the plateau, Adam, the race with no prices
     python3 gd_rrxor.py            # about 20 s    the toy transformer under plain gradient descent
+    python3 unit_race.py           # about 1 min   two circuits at once: the race in time
     python leap.py                 # about 1 min   the leap staircase with exact gradients (needs numpy)
     python leap.py online          # about 1.5 h   the leap staircase with fresh samples (needs numpy)
     python leap.py pullback        # about 4 min   why the wait rises steeply
