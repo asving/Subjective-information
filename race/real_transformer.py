@@ -11,7 +11,11 @@
           0.880, optimum 0.8234. Reports the step at which the loss passes 0.97, 0.91, 0.88 and 0.84
           under Adam and under plain SGD.
 
+  rate    The one-layer transformer of "scale" under Adam at five learning rates. If each weight moved one
+          learning rate per step, the step of the first drop times the rate would be constant.
+
 Run:  python real_transformer.py scale          (about three minutes; add "small" for s = 0.25 and 0.18, about 25 more)
+      python real_transformer.py rate           (about two minutes)
       python real_transformer.py phase          (Adam: about five minutes. Add "sgd" for the plain-SGD runs: hours)
 """
 import itertools
@@ -98,6 +102,20 @@ def part_scale(small=False):
     print("    local exponent of the wait in 1/s, seed 0:")
     for (s1, g1, a1), (s2, g2, a2) in zip(rows, rows[1:]):
         print(f"      s = {s1} to {s2}:  gradient descent {math.log(g2[0] / g1[0]) / math.log(s1 / s2):.2f}   Adam {math.log(a2[0] / a1[0]) / math.log(s1 / s2):.2f}")
+    torch.set_default_dtype(torch.float32)
+
+
+def part_rate():
+    torch.set_num_threads(2)
+    torch.set_default_dtype(torch.float64)
+    X = aligned()
+    mask = torch.triu(torch.ones(L - 1, L - 1, dtype=torch.bool), 1)
+    print("=== rate: one-layer transformer, aligned RRXOR, Adam with exact gradients, at five learning rates ===")
+    print("    step at which the loss first falls under 0.95, seeds 0-2")
+    for std in (0.05, 0.025):
+        for lr in (2e-3, 1e-3, 5e-4, 2.5e-4, 1.25e-4):
+            r = [first_drop(X, mask, seed, std, 'adam', lr, 20000) for seed in range(3)]
+            print(f"  initial std {std}, learning rate {lr}: {r}   step x rate: " + ', '.join(f"{a * lr:.3f}" for a in r), flush=True)
     torch.set_default_dtype(torch.float32)
 
 
@@ -203,6 +221,8 @@ if __name__ == '__main__':
     t0 = time.time()
     if args[0] == 'scale':
         part_scale(small='small' in args)
+    elif args[0] == 'rate':
+        part_rate()
     elif args[0] == 'phase':
         part_phase(sgd='sgd' in args)
     print(f"    ({time.time() - t0:.0f} s)")

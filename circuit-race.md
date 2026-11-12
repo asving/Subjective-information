@@ -275,12 +275,29 @@ What held:
 - **The partial circuits.** In seed 2 at step 105 the network is the XOR alone: strength −0.68, every other unit within 0.06 of zero, 98.9% explained, loss 0.9230. At step 140 it is the XOR and the trick at −0.18, with loss 0.9146.
 - **The trick is rolled back.** Its largest strength is −0.37, −0.52 and −0.58, and it ends at −0.09, −0.19 and −0.16.
 
-What failed:
+What failed, at the learning rate of 0.001 used above:
 
-- **The menu is incomplete in mid-training.** While the loss is between 0.84 and 0.90 the six shapes explain 80.7%, 80.5% and 82.1% of the logit on average, and as little as 59%. We had predicted at least 80% throughout. Adding e times a single violation at each offset raises the average only to between 82.5% and 84.0%, though we had predicted it would repair the fit. A lookup table on every column the circuit uses gives 84.2% to 88.0%. So while the phase part forms, 12 to 16% of the logit comes from columns the circuit does not have. We do not know what they are.
-- **The timing.** Cancel 2 arrives at 3.1 to 3.8 times the XOR's step, where the race under Adam has 1.5 to 1.7. For sure the figures are 5.1 to 7.3 against 2.1 to 2.9.
-- **Adam's loss spikes.** Several times the loss jumps back up. In seed 0 it goes from 0.8280 at step 480 to 0.8741 at step 520, while sure falls from −5.03 to −1.35 and the trick grows from −0.13 to −0.26. The race under Adam has no such spikes.
+- **The menu is incomplete in mid-training.** While the loss is between 0.84 and 0.90 the six shapes explain 80.7%, 80.5% and 82.1% of the logit on average, and as little as 59%. We had predicted at least 80% throughout. Adding e times a single violation at each offset raises the average only to between 82.5% and 84.0%, though we had predicted it would repair the fit. A lookup table on every column the circuit uses gives 84.2% to 88.0% (`readout.py extra`). So while the phase part forms, 12 to 16% of the logit comes from columns the circuit does not have. We do not know what they are.
+- **The timing.** Cancel 2 arrives at 3.1 to 3.8 times the XOR's step, where the race under Adam has 1.5 to 1.7. The loss also jumps back up several times. In seed 0 it goes from 0.8280 at step 480 to 0.8741 at step 520, while sure falls from −5.03 to −1.35 and the trick grows from −0.13 to −0.26.
 - **Plain SGD shows no stages after the XOR** (`readout.py sgd`; initial standard deviation 0.1, learning rate 0.1). It ends on the same circuit, with 95.8% explained. But the trick and the flags grow together from about step 500, sure grows steadily from step 780 to the end at 4,772, and the trick stays between −0.19 and −0.29. We had predicted a stretch with the trick alone. At this initial size the weights are not small, which the race assumes.
+
+**The slow later stages were the optimiser's instability.** We asked whether wrong prices caused the timing, and varied Adam's learning rate and the length β₂ of its average of squared gradients (`readout.py sweep`). A "rise" is a readout at which the loss had gone up by more than 0.01 in five steps.
+
+| Adam setting | xor at step, three seeds | cancel 2, as a multiple of that | sure, as a multiple | Rises | Six shapes in mid-training |
+|---|---|---|---|---|---|
+| Learning rate 0.002 | 45, 120, 135 | 6.3, 3.6, 6.1 | 9.7, 5.9, 6.2 | 19, 7, 15 | 75% to 79% |
+| 0.001 | 35, 95, 60 | 3.4, 3.1, 3.8 | 7.3, 7.3, 5.1 | 10, 14, 7 | 80% to 82% |
+| 0.0005 | 35, 55, 35 | 1.7, 1.1, 2.3 | 5.4, 4.4, 5.9 | 1, 2, 1 | 86% |
+| 0.00025 | 30, 40, 25 | 2.2, 1.5, 2.4 | 7.8, 5.8, 9.0 | 3, 0, 1 | 87% to 89% |
+| 0.000125 | 25, 30, 20 | 2.4, 2.7, 3.0 | 11.6, 9.3, 15.0 | 0, 3, 3 | 89% |
+| 0.001 with β₂ = 0.9 | 35, 75, 50 | 1.3, 2.0, 1.1 | 6.3, 3.6, 6.9 | 8, 8, 6 | 82% to 85% |
+| The race under Adam | 47, 45, 36 | 1.7, 1.5, 1.7 | 2.1, 2.3, 2.9 | none | |
+
+- **At 0.001 and above the transformer is unstable.** Halving the rate makes training faster in steps: it ends at step 397 to 497 where it had ended at 690 to 1,876. The loss then rises once or twice where it had risen 7 to 14 times.
+- **In a stable run the phase gate's timing is the race's.** At 0.0005 cancel 2 arrives at 1.1 to 2.3 times the XOR's step, and with the short average at 1.1 to 2.0. Before the sweep we gave the short average an even chance of doing this.
+- **The certainty unit is slower than the race in every setting.**
+- **Part of the mid-training gap was the instability.** In the stable runs the six shapes explain 86% to 89%, so 11 to 14% is still unexplained. We had put the chance of reaching 90% at one half.
+- **The learning rate does not set the pace.** From 0.0005 down to 0.000125 the XOR's step goes from 35, 55, 35 to 25, 30, 20, and cancel 2's from 60, 60, 80 to 60, 80, 60. We had predicted that the steps would grow in proportion as the rate falls, which is what a weight moving one learning rate per step implies. They do not grow at all. In the one-layer transformer without layer norm the wait does grow, though more slowly than in proportion: 38, 59, 95, 156 and 262 steps as the rate falls from 0.002 to 0.000125 (`real_transformer.py rate`). So in the layer-normed transformer Adam's wait is neither a count of weights nor a distance, and we have no account of it.
 
 ## A test in someone else's setting
 
@@ -379,8 +396,9 @@ So the three statements of the opening stand as follows. The multiplying law of 
 - **Units are written by hand.** The model says when a given unit appears. It does not find the units. For the phase circuit the number of weights in each unit is also our choice.
 - **One circuit is read out of one transformer, and only through its outputs.** The fit is to the network's logit. Nothing was read from its weights, and what the network computes off the menu in mid-training is not identified. Weight decay is untested, and layer norm appears only in the four-layer runs.
 - **The noisy laws are partial.** Adam's dependence on batch size is measured and explained. Its exponent in d under noise is not derived. The account of the steep rise by the pull-back rests on three observations at one leap and two dimensions.
+- **Adam's wait in a real transformer is not understood.** In the four-layer transformer it does not depend on the learning rate below 0.0005, and above that it is set by instability. The chain's account, a distance divided by the learning rate, covers neither.
 - **Adam's flat price is approximate.** It rises at leap 4 from small weights, and one toy-transformer seed in seven was slow. The cause of the rise is not identified; it is not the 10⁻⁸ in Adam's denominator.
-- **The race in time has met a network twice.** Against a toy network with two kinds of circuit its timing holds. Against a real transformer its order holds and its timing does not. Its units keep their shapes, so it times a circuit's arrival and not what the circuit grows into, and it has no unit for an attention pattern.
+- **The race in time has met a network twice.** Against a toy network with two kinds of circuit its timing holds. Against a real transformer its order holds, and its timing holds for the phase gate in stable runs and not for the certainty unit. Its units keep their shapes, so it times a circuit's arrival and not what the circuit grows into, and it has no unit for an attention pattern.
 - **The five hand-priced races have not been rerun with derived waits.** Factor counts for hand-written units are rough, since a wiring does not say how many weights implement it.
 
 ## Reproducing
@@ -395,6 +413,8 @@ Plain Python 3 unless noted. Each script prints its own setup and results.
     python readout.py              # about 5 min   the phase circuit read out of a transformer (needs PyTorch)
     python readout.py sgd          # about 7 min   the same under plain SGD
     python readout.py extra        # about 5 min   what the six shapes miss in mid-training
+    python readout.py sweep        # about 20 min  Adam's learning rate and beta2
+    python real_transformer.py rate    # about 2 min   one layer: Adam's wait against the learning rate
     python leap.py                 # about 1 min   the leap staircase with exact gradients (needs numpy)
     python leap.py online          # about 1.5 h   the leap staircase with fresh samples (needs numpy)
     python leap.py pullback        # about 4 min   why the wait rises steeply

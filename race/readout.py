@@ -21,6 +21,8 @@ Run:  python readout.py          (Adam, three seeds; about five minutes)
                                   back, and the six plus e times an indicator of each position. A third is a lookup
                                   table on e, the token two back, the three flags and the position mod 3, which
                                   contains every function of the columns the circuit uses)
+      python readout.py sweep    (Adam at other learning rates and other values of beta2: when does each unit
+                                  arrive? About twenty minutes)
 """
 import math
 import sys
@@ -83,14 +85,14 @@ def representatives(Xs):
     return torch.tensor([a for a, _ in idx]), torch.tensor([b for _, b in idx])
 
 
-def train(kind, lr, std, seed, max_steps, every, stop=0.826, extra=None):
+def train(kind, lr, std, seed, max_steps, every, stop=0.826, extra=None, beta2=0.999):
     """Train and read out. Returns rows (step, loss, explained, strengths of the six units[, shares of the larger fits])."""
     Xs, Ws = rt.random_start()
     Phi, w, M = design()
     ri, rp = representatives(Xs)
     torch.manual_seed(seed)
     net = rt.Transformer(std=std)
-    opt = torch.optim.Adam(net.parameters(), lr) if kind == 'adam' else torch.optim.SGD(net.parameters(), lr)
+    opt = torch.optim.Adam(net.parameters(), lr, betas=(0.9, beta2)) if kind == 'adam' else torch.optim.SGD(net.parameters(), lr)
     rows = []
     for step in range(max_steps + 1):
         opt.zero_grad()
@@ -145,7 +147,22 @@ if __name__ == '__main__':
     torch.set_num_threads(4)
     t0 = time.time()
     print("=== readout: the six shapes of the phase circuit, fitted to a real four-layer transformer during training ===")
-    if sys.argv[1:] == ['extra']:
+    if sys.argv[1:] == ['sweep']:
+        print("    step at which a unit first reaches half its final strength; in brackets, that step over the XOR's")
+        for lr, beta2 in ((2e-3, 0.999), (1e-3, 0.999), (5e-4, 0.999), (2.5e-4, 0.999), (1.25e-4, 0.999), (1e-3, 0.99), (1e-3, 0.9)):
+            for seed in range(3):
+                rows = train('adam', lr, 0.02, seed, int(4000 * 1e-3 / lr), 5, beta2=beta2)
+                final = rows[-1][3]
+                half = {}
+                for j, n in enumerate(NAMES):
+                    half[n] = next((r[0] for r in rows if r[3][j] * final[j] > 0 and abs(r[3][j]) >= 0.5 * abs(final[j])), None) if abs(final[j]) >= 0.05 else None
+                spikes = sum(1 for a, b in zip(rows, rows[1:]) if b[1] > a[1] + 0.01)
+                x = half['xor']
+                print(f"  learning rate {lr}, beta2 {beta2}, seed {seed}: " + ', '.join(f"{n} {half[n]} ({half[n] / x:.1f})" if half[n] is not None else f"{n} -" for n in ('xor', 'two back', 'cancel 1', 'cancel 2', 'sure'))
+                      + f"; ends at step {rows[-1][0]}, loss {rows[-1][1]:.4f}, {100 * rows[-1][2]:.1f}% explained; {spikes} readouts where the loss rose by over 0.01", end='')
+                mid = [r[2] for r in rows if 0.84 < r[1] < 0.90]
+                print(f"; explained while the loss is between 0.84 and 0.90: mean {100 * sum(mid) / len(mid):.1f}%, lowest {100 * min(mid):.1f}%", flush=True)
+    elif sys.argv[1:] == ['extra']:
         ex = extra_designs()
         print("    share of the logit's variance explained by: the six shapes / plus single violations / plus positions / a lookup table")
         print(f"    the lookup table has {ex[1].max() + 1} entries for {len(rr.P)} prefixes")
