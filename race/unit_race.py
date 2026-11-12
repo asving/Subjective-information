@@ -29,8 +29,23 @@ Three simulators are started from the literal network's own initial weights and 
 Three events are timed: |omega| first above 0.3 (the shared weight is on), and the probability given to the
 XOR at XOR positions first above 0.52 (the XOR appears) and first above 0.6 (the XOR is strong).
 
-Run:  python3 unit_race.py            (the table; about a minute)
-      python3 unit_race.py trace      (one run in detail: s = 0.25, initial scale 0.01, seed 0)
+Second use: the phase circuit of random-start RRXOR, with units written by hand above the level of
+neurons. Two primitives: the XOR of two columns (with tokens +-1, their product), and an OR pooled over
+every third position back. The shapes come from rrxor_random.py.
+
+    xor         e_t = x_t * x_(t-1)                                   factors (r_e, a)
+    two back    x_(t-2), a cheap trick                                factors (r_s, s)
+    cancel r    e_t * D_r, for r = 2, 0, 1, where v_t = x_t * e_(t-1) marks a token that breaks the XOR rule
+                and D_r = OR of v at r, r+3, ... positions back       factors (rho_r, f_r, c_r, b, a, a)
+    sure        e_t * D_0 * D_1                                       factors (rho_s, f_s, c_0, c_1, b, b, a, a, a)
+
+Each use of a primitive has one write weight (a for e, b for v, c_r for D_r, f for a product) and the output
+reads each product with one weight. That count is a choice, not derived from a network. All factors start
+as Gaussians of scale x0. The race is run as gradient flow and under Adam with exact gradients.
+
+Run:  python3 unit_race.py            (sticky RRXOR: the table; about a minute)
+      python3 unit_race.py trace      (sticky RRXOR, one run in detail: s = 0.25, initial scale 0.01, seed 0)
+      python3 unit_race.py phase      (the phase circuit; a few seconds)
 """
 import itertools
 import math
@@ -102,6 +117,20 @@ class Race:
         _, _, r2 = self.rates({f: w[f] + 0.5 * dt * r1[f] for f in w})
         self.w = {f: w[f] + dt * r2[f] for f in w}
         self.t += dt
+        return loss, p
+
+    def adam_step(self, lr=0.01):
+        """One Adam step on the exact gradient. Returns the loss and probabilities before the step."""
+        if not hasattr(self, 'm'):
+            self.m, self.v, self.n = dict.fromkeys(self.w, 0.0), dict.fromkeys(self.w, 0.0), 0
+        loss, p, rate = self.rates(self.w)
+        self.n += 1
+        for f in self.w:
+            g = -rate[f]
+            self.m[f] = 0.9 * self.m[f] + 0.1 * g
+            self.v[f] = 0.999 * self.v[f] + 0.001 * g * g
+            self.w[f] -= lr * (self.m[f] / (1 - 0.9 ** self.n)) / (math.sqrt(self.v[f] / (1 - 0.999 ** self.n)) + 1e-8)
+        self.t += 1
         return loss, p
 
 
@@ -311,8 +340,100 @@ def main_trace(s=0.25, eps=0.01, seed=0):
             print(f"    {row[0]:8.0f} {row[1]:8.5f} {row[2]:7.3f} {row[3]:8.4f}")
 
 
+# ---------------------------------------------------------------- the phase circuit of random-start RRXOR
+
+def phase_menu():
+    """Hand-written units for random-start RRXOR, built from two primitives: the XOR of two columns (a product,
+    with tokens +-1) and an OR pooled over every third position back. Returns (cells, units)."""
+    import rrxor_random as rr
+    X = rr.X
+    XOR = ('head', ('off', 1), X, X, 'mean')            # e_t = x_t * x_(t-1)
+    VIO = ('head', ('off', 1), X, XOR, 'mean')          # v_t = x_t * e_(t-1): +1 where token t breaks the XOR rule
+    e = rr.val(XOR)
+    D = {r: [1.0 if m == 1 else 0.0 for m in rr.val(('head', ('per', 3, r), None, VIO, 'max'))] for r in (2, 0, 1)}
+    shapes = [('xor', ('r_e', 'a'), e),
+              ('two back', ('r_s', 's'), rr.val(('head', ('off', 2), None, X, 'mean')))]
+    for r in (2, 0, 1):
+        shapes.append((f'cancel {r}', (f'rho{r}', f'f{r}', f'c{r}', 'b', 'a', 'a'), [x * d for x, d in zip(e, D[r])]))
+    shapes.append(('sure', ('rho_s', 'f_s', 'c0', 'c1', 'b', 'b', 'a', 'a', 'a'), [x * d0 * d1 for x, d0, d1 in zip(e, D[0], D[1])]))
+    agg = {}
+    for key, w, y in zip(zip(*[sh[2] for sh in shapes]), rr.W, rr.Y):
+        c = agg.setdefault(key, [0.0, 0.0])
+        c[0] += w
+        c[1] += y
+    keys = list(agg)
+    cells = [(agg[k][0], agg[k][1] / agg[k][0]) for k in keys]
+    units = [(name, F, [(i, k[j]) for i, k in enumerate(keys) if k[j]]) for j, (name, F, _) in enumerate(shapes)]
+    return cells, units
+
+
+def best_readout(cells, units):
+    """Loss of the best linear readout of the units' shapes: the same race with one weight per unit."""
+    race = Race(cells, [(n, (n,), phi) for n, _, phi in units], {n: 0.0 for n, _, _ in units})
+    for _ in range(4000):
+        loss, _ = race.step(tol=0.05, dt_max=20.0)
+    return loss
+
+
+def run_phase(cells, units, x0, seed, adam, ref, cap=12000):
+    """One race. Returns [(time, loss, strengths)], strength = product of a unit's factors."""
+    import random
+    rnd = random.Random(seed)
+    names = sorted({f for _, F, _ in units for f in F})
+    race = Race(cells, units, {f: rnd.gauss(0, x0) for f in names}, floor=x0 / 10)
+    hist = []
+    while len(hist) < cap:
+        st = []
+        for _, F, _ in units:
+            x = 1.0
+            for f in F:
+                x *= race.w[f]
+            st.append(x)
+        t = race.t
+        loss, _ = race.adam_step(0.01) if adam else race.step()
+        hist.append((t, loss, st))
+        if loss < ref + 0.0005:
+            break
+    return hist
+
+
+def part_phase():
+    cells, units = phase_menu()
+    ref = best_readout(cells, units)
+    print("=== the phase circuit of random-start RRXOR, from two primitives, raced in time ===")
+    print(f"    {len(cells)} cells, {len(units)} units; best linear readout of their shapes: {ref:.4f} bits per token")
+    print("    each unit: time (flow) or step (Adam) at which its strength first reaches half its final value; loss at that moment")
+    for adam, x0 in ((False, 0.1), (False, 0.5), (True, 0.1), (True, 0.5)):
+        for seed in range(3):
+            hist = run_phase(cells, units, x0, seed, adam, ref)
+            final = hist[-1][2]
+            arrive = []
+            for j, (name, _, _) in enumerate(units):
+                if abs(final[j]) < 0.02:
+                    continue
+                t, loss = next((t, loss) for t, loss, st in hist if st[j] * final[j] > 0 and abs(st[j]) >= 0.5 * abs(final[j]))
+                arrive.append((t, name, loss, final[j]))
+            arrive.sort()
+            j = [u[0] for u in units].index('two back')
+            pk = max(hist, key=lambda row: abs(row[2][j]))
+            print(f"  {'Adam' if adam else 'flow'}, x0 = {x0}, seed {seed}: ends at {hist[-1][0]:.0f} with loss {hist[-1][1]:.4f}")
+            print("      " + ';  '.join(f"{name} at {t:.0f} (loss {loss:.4f}, strength {fs:+.2f})" for t, name, loss, fs in arrive))
+            print(f"      two back: largest strength {pk[2][j]:+.2f} at {pk[0]:.0f}, final {final[j]:+.2f}", flush=True)
+    for adam, seed in ((False, 1), (True, 1)):
+        hist = run_phase(cells, units, 0.1, seed, adam, ref)
+        print(f"\n  one run in detail: {'Adam' if adam else 'gradient flow'}, x0 = 0.1, seed {seed}; strength of each unit")
+        print(f"  {'time' if not adam else 'step':>6s} {'loss':>7s}  " + ' '.join(f"{u[0]:>9s}" for u in units))
+        last = -1.0
+        for t, loss, st in hist:
+            if t >= last * (1.6 if not adam else 1.25) + (5 if not adam else 8) or t == hist[-1][0]:
+                print(f"  {t:6.0f} {loss:7.4f}  " + ' '.join(f"{x:+9.3f}" for x in st))
+                last = t
+
+
 if __name__ == '__main__':
     if sys.argv[1:] == ['trace']:
         main_trace()
+    elif sys.argv[1:] == ['phase']:
+        part_phase()
     else:
         main()
