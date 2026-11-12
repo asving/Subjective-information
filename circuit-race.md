@@ -12,7 +12,7 @@ Here is the case this note follows. The data are twelve tokens R R X R R X …, 
 - **It learns a rule that is half wrong.** The first circuit predicts the XOR of the last two tokens at every position, including the positions where the next token is a coin flip.
 - **It corrects the rule on a different clock.** Restricting the prediction to XOR positions follows a few hundred time units later, however long the first wait was.
 
-This note gives a model that accounts for all three with nothing fitted. It then asks how far the model carries: to two circuits growing in one network, to the optimiser people actually use, and to a setting from the literature.
+This note gives a model that accounts for all three with nothing fitted. It then asks how far the model carries: to two circuits growing in one network, to the optimiser people actually use, to a circuit read out of a real transformer, and to a setting from the literature.
 
 **Where this sits.** Alternating Gradient Flows (Kunin, Marchetti et al., 2025) describes training as dormant neurons accumulating evidence until one activates. We take that alternation and extend it from single neurons to circuits whose parts depend on each other. We then test the result on the leap staircase of Abbe, Boix-Adserà and Misiakiewicz (2023).
 
@@ -194,7 +194,7 @@ We tried this ranking on a harder version of the task, RRXOR started at a random
 
 Plain gradient descent would order things differently. By a rough count the bundle has ten factors, and a cheap alternative, the token two back, has four. Comparing h_10(x₀)/g with h_4(x₀)/g for the two gains, the bundle comes first only if x₀ is above 0.81. So the order seen in trained transformers is itself evidence for the flat price.
 
-**A real transformer agrees.** `real_transformer.py phase` trains a four-layer transformer (width 64, four heads, layer norm, initial standard deviation 0.02) on the same random-phase data with exact gradients. Under Adam with η = 0.001, in three seeds the loss passes 0.97 at steps 37, 58 and 90, goes under the XOR-only level of 0.926 by steps 90, 160 and 226, and is within 0.02 of the optimum by steps 261, 428 and 466. The second stage begins about two and a half times as far in as the first. We read only the loss levels; we did not extract the circuit.
+**A real transformer agrees.** `real_transformer.py phase` trains a four-layer transformer (width 64, four heads, layer norm, initial standard deviation 0.02) on the same random-phase data with exact gradients. Under Adam with η = 0.001, in three seeds the loss passes 0.97 at steps 37, 58 and 90, goes under the XOR-only level of 0.926 by steps 90, 160 and 226, and is within 0.02 of the optimum by steps 261, 428 and 466. The second stage begins about two and a half times as far in as the first. Here we read only the loss levels. The next section reads the circuit out.
 
 Plain SGD from the same initial weights learns nothing in 6,000 steps at learning rate 0.3, and diverges at 1.0. From weights five and ten times larger, where the factors are no longer small, SGD learns both stages in the same order, with the later ones relatively slower than under Adam.
 
@@ -218,6 +218,69 @@ Run on five processes, the proportional rule builds the circuits reported for tr
 | Self-inoculation | Swap applied everywhere at half strength, then a switch on the situation belief (flip 0.94 in A, 0.06 in B), and the blind swap rolled back from 0.53 to 0.02 | Detour through a shared flip, then a switch | `self_inoculation.py` |
 
 The half-wrong XOR is one instance of a pattern in this table: a cheap rule is applied everywhere at partial strength, a gate arrives, and the ungated strength returns to zero. Only the soft XOR and the orbit circuit were computed before the trained result was known.
+
+## A circuit thought up, raced, and read out
+
+The last two sections each did half of a job. One raced two circuits in time, in a toy network. The other took a harder task and a real transformer, but ranked circuits only by order and saw the transformer only through its loss. This section does the whole job once, on random-start RRXOR: write a circuit down, race it in time, and read the same units out of a real transformer while it trains.
+
+**The circuit.** It needs two primitives: the XOR of two columns, which for tokens ±1 is their product, and an OR pooled over every third position back.
+
+     x_t, x_(t-1) ─ XOR ─> [ e ] ───────────────────────────────────┐
+                             │ read one position back               │
+     x_t ────────── XOR ─> [ v ] ─┬─ OR at t-2, t-5, t-8 ─> [ D2 ] ─┤
+                                  ├─ OR at t,   t-3, t-6 ─> [ D0 ] ─┼─> output
+                                  └─ OR at t-1, t-4, t-7 ─> [ D1 ] ─┘
+
+    e_t = x_t · x_(t−1)          up to sign, the next token if the next token is an XOR
+    v_t = x_t · e_(t−1)          +1 where token t is not the XOR of the two before it
+    D_2, D_0, D_1                1 when some such token rules out the phase in which the next, the current, or the previous token is an XOR
+
+The output predicts from e. D_2 cancels the prediction, and D_0 together with D_1 makes it certain. As units:
+
+    xor         shape e                  factors { r_e, a }
+    two back    shape x_(t−2)            factors { r_s, s }                            a cheap trick, for comparison
+    cancel r    shape e · D_r            factors { ρ_r, f_r, c_r, b, a, a }            r = 2, 0, 1
+    sure        shape e · D_0 · D_1      factors { ρ_s, f_s, c_0, c_1, b, b, a, a, a }
+
+Each use of a primitive has one write weight: a for e, b for v, c_r for D_r, and f for a product. The output reads each unit with one weight, and a weight counts twice in a unit that uses its column twice. This count is our choice. It is not derived from a network. The best output that is linear in the six shapes has a loss of 0.8260 bits per token, against the optimum of 0.8234.
+
+**The race** (`unit_race.py phase`). Every factor starts as a Gaussian of scale 0.1. The table gives three seeds.
+
+| Event | Gradient flow, time | Adam, step |
+|---|---|---|
+| xor at half its final strength | 20, 18, 10 | 47, 45, 36 |
+| two back at half its largest strength | 65, 177, 40 | 49, 45, 35 |
+| cancel 2 at half its final strength | 4,766, 1,687, 3,014 | 78, 66, 61 |
+| sure at half its final strength | 5,378, 2,357, 3,341 | 100, 105, 104 |
+| two back: largest strength | −0.29, −0.31, −0.29 | −0.21, −0.20, −0.18 |
+| two back: final strength | −0.02, −0.11, −0.05 | 0.00 |
+
+Under gradient flow the loss waits at 0.9257 with the XOR alone, and then for a long time at 0.9164 with the trick added. The trick has two dormant factors. The phase part has four, because v alone and D_2 alone have no gain and so must grow as a bundle with the product that uses them. Once cancel 2 arrives, the other flags follow within 700 time units, since they reuse b. Then the trick has nothing left to explain and is rolled back. Under Adam the whole sequence takes 140 steps.
+
+**The readout** (`readout.py`). The transformer is the four-layer one of the last section, trained with exact gradients. Its logit is a function of the prefix it has seen. Every five steps we fit that function on a constant, the current token and the six shapes, by least squares weighted with the probability of each prefix. The coefficient of a shape is that unit's strength in the network, in the units of the race. The predictions below were written before the run.
+
+| Unit | Race, final strength | Transformer under Adam, three seeds |
+|---|---|---|
+| xor | −0.57 to −0.69 | −0.68, −0.74, −0.72 |
+| cancel 2 | +0.78 to +0.82 | +0.72, +0.70, +0.72 |
+| cancel 1 | −0.23 to −0.28 | −0.18, −0.20, −0.20 |
+| cancel 0 | −0.14 to −0.34 | −0.12, −0.02, −0.06 |
+| sure | −5.2 to −5.8 | −5.72, −6.39, −5.73 |
+| two back | 0.00 to −0.11 | −0.09, −0.19, −0.16 |
+
+What held:
+
+- **The finished network is this circuit.** The fit explains 98.1%, 96.7% and 97.8% of the variance of the logit. The race and the network both end near the best fit of the same shapes, so the agreement of the strengths adds little to that share.
+- **The order.** In all three seeds the units reach half their final strength in the order xor (steps 35, 95, 60), two back (60, 130, 115), cancel 2 (120, 290, 230), sure (255, 695, 305).
+- **The partial circuits.** In seed 2 at step 105 the network is the XOR alone: strength −0.68, every other unit within 0.06 of zero, 98.9% explained, loss 0.9230. At step 140 it is the XOR and the trick at −0.18, with loss 0.9146.
+- **The trick is rolled back.** Its largest strength is −0.37, −0.52 and −0.58, and it ends at −0.09, −0.19 and −0.16.
+
+What failed:
+
+- **The menu is incomplete in mid-training.** While the loss is between 0.84 and 0.90 the six shapes explain 80.7%, 80.5% and 82.1% of the logit on average, and as little as 59%. We had predicted at least 80% throughout. Adding e times a single violation at each offset raises the average only to between 82.5% and 84.0%, though we had predicted it would repair the fit. A lookup table on every column the circuit uses gives 84.2% to 88.0%. So while the phase part forms, 12 to 16% of the logit comes from columns the circuit does not have. We do not know what they are.
+- **The timing.** Cancel 2 arrives at 3.1 to 3.8 times the XOR's step, where the race under Adam has 1.5 to 1.7. For sure the figures are 5.1 to 7.3 against 2.1 to 2.9.
+- **Adam's loss spikes.** Several times the loss jumps back up. In seed 0 it goes from 0.8280 at step 480 to 0.8741 at step 520, while sure falls from −5.03 to −1.35 and the trick grows from −0.13 to −0.26. The race under Adam has no such spikes.
+- **Plain SGD shows no stages after the XOR** (`readout.py sgd`; initial standard deviation 0.1, learning rate 0.1). It ends on the same circuit, with 95.8% explained. But the trick and the flags grow together from about step 500, sure grows steadily from step 780 to the end at 4,772, and the trick stays between −0.19 and −0.29. We had predicted a stretch with the trick alone. At this initial size the weights are not small, which the race assumes.
 
 ## A test in someone else's setting
 
@@ -313,11 +376,11 @@ So the three statements of the opening stand as follows. The multiplying law of 
 
 ## What is not established
 
-- **Units are written by hand.** The model says when a given unit appears. It does not find the units.
-- **Real transformers are compared only from outside.** We checked a scaling exponent in one and the loss levels another passes through. No circuit was read out of their weights. Weight decay is untested, and layer norm appears only in the four-layer run.
+- **Units are written by hand.** The model says when a given unit appears. It does not find the units. For the phase circuit the number of weights in each unit is also our choice.
+- **One circuit is read out of one transformer, and only through its outputs.** The fit is to the network's logit. Nothing was read from its weights, and what the network computes off the menu in mid-training is not identified. Weight decay is untested, and layer norm appears only in the four-layer runs.
 - **The noisy laws are partial.** Adam's dependence on batch size is measured and explained. Its exponent in d under noise is not derived. The account of the steep rise by the pull-back rests on three observations at one leap and two dimensions.
 - **Adam's flat price is approximate.** It rises at leap 4 from small weights, and one toy-transformer seed in seven was slow. The cause of the rise is not identified; it is not the 10⁻⁸ in Adam's denominator.
-- **The race in time is tested on one task.** It has two kinds of circuit in one toy network under plain gradient descent. Its units keep their shapes, so it times a circuit's arrival and not what the circuit grows into, and it has no unit for an attention pattern.
+- **The race in time has met a network twice.** Against a toy network with two kinds of circuit its timing holds. Against a real transformer its order holds and its timing does not. Its units keep their shapes, so it times a circuit's arrival and not what the circuit grows into, and it has no unit for an attention pattern.
 - **The five hand-priced races have not been rerun with derived waits.** Factor counts for hand-written units are rough, since a wiring does not say how many weights implement it.
 
 ## Reproducing
@@ -328,6 +391,10 @@ Plain Python 3 unless noted. Each script prints its own setup and results.
     python3 unit_price.py          # about 1 min   the chain, the plateau, Adam, the race with no prices
     python3 gd_rrxor.py            # about 20 s    the toy transformer under plain gradient descent
     python3 unit_race.py           # about 1 min   two circuits at once: the race in time
+    python3 unit_race.py phase     # a few seconds the phase circuit, raced in time
+    python readout.py              # about 5 min   the phase circuit read out of a transformer (needs PyTorch)
+    python readout.py sgd          # about 7 min   the same under plain SGD
+    python readout.py extra        # about 5 min   what the six shapes miss in mid-training
     python leap.py                 # about 1 min   the leap staircase with exact gradients (needs numpy)
     python leap.py online          # about 1.5 h   the leap staircase with fresh samples (needs numpy)
     python leap.py pullback        # about 4 min   why the wait rises steeply

@@ -418,7 +418,8 @@ def part_phase():
             pk = max(hist, key=lambda row: abs(row[2][j]))
             print(f"  {'Adam' if adam else 'flow'}, x0 = {x0}, seed {seed}: ends at {hist[-1][0]:.0f} with loss {hist[-1][1]:.4f}")
             print("      " + ';  '.join(f"{name} at {t:.0f} (loss {loss:.4f}, strength {fs:+.2f})" for t, name, loss, fs in arrive))
-            print(f"      two back: largest strength {pk[2][j]:+.2f} at {pk[0]:.0f}, final {final[j]:+.2f}", flush=True)
+            half = next(t for t, _, st in hist if st[j] * pk[2][j] > 0 and abs(st[j]) >= 0.5 * abs(pk[2][j]))
+            print(f"      two back: half of its largest strength at {half:.0f}, largest {pk[2][j]:+.2f} at {pk[0]:.0f}, final {final[j]:+.2f}", flush=True)
     for adam, seed in ((False, 1), (True, 1)):
         hist = run_phase(cells, units, 0.1, seed, adam, ref)
         print(f"\n  one run in detail: {'Adam' if adam else 'gradient flow'}, x0 = 0.1, seed {seed}; strength of each unit")
