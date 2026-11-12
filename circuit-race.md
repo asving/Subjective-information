@@ -270,6 +270,8 @@ SGD follows the multiplying law and ignores the noise. With the a_j fixed at an 
 
 Adam's speed is the signal-to-noise ratio of the gradient. Let the gradient of a dormant factor, over the draw of a batch of size B, have mean μ and standard deviation ρ/√B. When μ√B/ρ is below 1, the ratio m̂/√v̂ in Adam's update averages about μ√B/ρ, so the factor moves η·μ√B/ρ per step where clean gradients gave η. The wait should then go as 1/√B, and the measured exponent is −0.51. Because μ is g times the product of the other dormant factors, the dependence on k and x₀ comes back with the noise. We have not derived Adam's exponent in d, which is higher than SGD's at both leaps.
 
+That difference in exponents predicts that plain SGD overtakes Adam when d is large and the batch small. It does (`leap.py crossover`). At batch 8 and d = 256, Adam takes 10,000 steps and SGD 26,400. At d = 1,024, SGD takes 269,800, and none of three Adam seeds finishes within 2,000,000. We predicted the reversal before running it, from the fitted exponents. It came out far stronger than they implied, so Adam's wait is not a power law in d here.
+
 None of these runs shows d^(L−1), which at leap 3 would be d². Two differences from the paper may account for that. Its theorem lets the learning rate shrink as a power of d, and ours is constant. And its bound is a statistical one, which at these sizes sits below the waits we measure: at d = 512 SGD's 31,300 steps of batch 32 are about a million samples, against d² of about 260,000.
 
 So the three statements of the opening stand as follows. The multiplying law of plain gradient descent holds in every setting tried: it predicts the plateau to within 3% for the toy transformer at ε = 0.01, gives the exponent 4 for six matrices in a transformer with vector weights, and predicts the leap plateau to within 14% once the pull-back is included. The flat price of Adam holds, approximately, with clean gradients. With noisy gradients Adam's speed is set by the signal-to-noise ratio, so its wait goes as 1/√B here, while SGD's does not depend on the batch. The largest effect in the noisy runs was neither the optimiser nor the noise. It was the pull-back on the output weights.
@@ -293,6 +295,7 @@ Plain Python 3 unless noted. Each script prints its own setup and results.
     python leap.py online          # about 1.5 h   the leap staircase with fresh samples (needs numpy)
     python leap.py pullback        # about 4 min   why the wait rises steeply
     python leap.py frozen          # about 5 min   output weights held fixed
+    python leap.py crossover       # about 30 min  SGD overtakes Adam at large d and small batch
     python real_transformer.py scale small   # about 30 min   vector weights, initial scale (needs PyTorch)
     python real_transformer.py phase sgd     # about 1 h      four layers, random-start RRXOR (needs PyTorch)
     python3 rrxor_aligned.py       # about 1 s     the five hand-priced races

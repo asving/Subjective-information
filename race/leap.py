@@ -18,11 +18,13 @@ is the monomial's coefficient times the mean L-th derivative of the activation o
   pullback   the same setting: the weights shrink during the plateau, and a wider network or a lower
              learning rate on the output weights shortens the wait.
   frozen     fresh samples with the output weights held fixed: against d and against the batch size.
+  crossover  the same at batch 8: Adam is faster at d = 256 and plain SGD at d = 1,024.
 
 Needs numpy.  Run:  python leap.py            (plateau and staircase, about a minute)
                     python leap.py online     (about an hour and a half on one core)
                     python leap.py pullback   (about four minutes)
                     python leap.py frozen     (about five minutes)
+                    python leap.py crossover  (about half an hour)
 """
 import math
 import sys
@@ -329,7 +331,15 @@ def part_frozen():
         row(f"{kind:4s}", (8, 32, 128, 512, 2048), lambda B, seed: online(256, 3, B, kind, lr, seed, freeze_a=True, cap=1500000))
 
 
-PARTS = {'plateau': part_plateau, 'staircase': part_staircase, 'online': part_online, 'pullback': part_pullback, 'frozen': part_frozen}
+def part_crossover():
+    print("=== crossover: output weights frozen, leap 3, batch 8, 64 neurons, fresh samples ===")
+    print("    steps until the test loss is 20% under that of predicting zero; three seeds (None = not within 2,000,000 steps)")
+    for d in (256, 1024):
+        for kind, lr in (('adam', 0.003), ('sgd', 0.1)):
+            print(f"    d = {d:5d} {kind:4s}: {[online(d, 3, 8, kind, lr, seed, freeze_a=True, cap=2000000) for seed in range(3)]}", flush=True)
+
+
+PARTS = {'plateau': part_plateau, 'staircase': part_staircase, 'online': part_online, 'pullback': part_pullback, 'frozen': part_frozen, 'crossover': part_crossover}
 
 if __name__ == '__main__':
     for name in (sys.argv[1:] or ['plateau', 'staircase']):
