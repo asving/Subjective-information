@@ -74,7 +74,7 @@ To first order in the amounts added by units that are still small, the loss is L
 
 For a single unit this is the chain with g_u in place of the error. So a unit with k factors, all starting at size x₀ with signs that make g_u ∏ w_f positive, becomes large at time h_k(x₀)/|g_u|.
 
-**Units in a network.** The residual stream has one column per feature and one row per position. A unit reads some columns and writes one. A head is a unit, a neuron is a unit, and so is a hand-written piece of circuit such as "multiply the current token by the previous one". Its output shape φ_u is what it would add to the prediction if all its factors were 1, with the units it reads held as they are.
+**Units in a network.** At each position the network holds a short list of numbers: the token, the position, the output of each head and the output of each neuron. Call each of these a *column*. A unit reads some columns and writes one. A head is a unit, a neuron is a unit, and so is a hand-written piece of circuit such as "multiply the current token by the previous one". Its output shape φ_u is what it would add to the prediction if all its factors were 1, with the units it reads held as they are.
 
 **Factors in a network.** Each unit on a path from the input to the prediction contributes a read and a write, and these are the factors that multiply. In the networks tested here each factor is a single number. In a wider network a read or a write is a vector, and the factor is its size along the direction the unit uses; the end of the next section tests the count of factors in that case. Factors still at their initial size x₀ are *dormant*, and k from now on counts only those. A unit whose factors have all grown is *active*. Two units can share a factor, as when several neurons read one head; the sum over u in the last display is for that.
 
@@ -96,6 +96,10 @@ Return to the transformer of the opening. Tokens are x_t = ±1 at positions t = 
     logit        z_t = Σ_j r_j · n_j + ρ_x · x_t + ρ_A · A_t + d[t] + bias
 
 Every symbol other than x and t is one scalar weight, drawn from a Gaussian of scale ε. The loss is the log loss of predicting the next token from z_t, averaged exactly over all sequences and positions, and training is full-batch gradient descent.
+
+![The toy transformer at one position, with the weights on its arrows](figures/toy-transformer.svg)
+
+*The network at position t. Each box is a column, and each arrow multiplies by the weight written on it. Not drawn: the constants c_j and the bias, and the weights b and β that set the average. The coloured paths are units. The soft XOR and the gating are discussed below, and the copy circuit in the next section.*
 
 **Which circuit comes first.** No single earlier token says anything about the next one, because any two tokens of a block are independent. The first useful circuit must combine two tokens. The shortest path that does so runs through the head and one neuron. For neuron j it is the unit
 

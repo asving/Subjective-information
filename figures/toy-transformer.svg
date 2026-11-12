@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 452" width="1000" height="452" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#1f2328">
+  <defs>
+    <marker id="a-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker>
+    <marker id="a-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#bc4c00"/></marker>
+    <marker id="a-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1a7f37"/></marker>
+    <marker id="a-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker>
+    <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#afb8c1"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="999" height="451" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+
+  <!-- layer titles -->
+  <g font-size="11.5" font-weight="600" fill="#57606a" text-anchor="middle" letter-spacing="0.4">
+    <text x="85" y="30">TOKENS AND POSITION</text>
+    <text x="385" y="30">HEAD COLUMN</text>
+    <text x="605" y="30">NEURON COLUMN (j = 1 … 6)</text>
+    <text x="805" y="30">OUTPUT</text>
+  </g>
+
+  <!-- background edges: direct reads by the output -->
+  <g fill="none" stroke="#afb8c1" stroke-width="1.5">
+    <path d="M40 185 H22 V350 H795 V276" marker-end="url(#a-grey)"/>
+    <path d="M130 322 H815 V276" marker-end="url(#a-grey)"/>
+  </g>
+  <g font-size="12.5" fill="#6e7781" text-anchor="middle">
+    <text x="480" y="344">× ρ<tspan dy="4" font-size="9.5">x</tspan></text>
+    <text x="480" y="316">× d[t]</text>
+  </g>
+
+  <!-- tokens into the average -->
+  <g fill="none" stroke="#57606a" stroke-width="1.5">
+    <path d="M130 65 L200 104" marker-end="url(#a-dark)"/>
+    <path d="M130 105 L200 111" marker-end="url(#a-dark)"/>
+    <path d="M130 145 L200 119" marker-end="url(#a-dark)"/>
+    <path d="M130 181 L200 127" marker-end="url(#a-dark)"/>
+  </g>
+
+  <!-- u_j: the read of the current token, which switches the neuron -->
+  <path d="M130 190 L560 200" fill="none" stroke="#57606a" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a-dark)"/>
+  <text x="400" y="185" font-size="12.5" text-anchor="middle" fill="#57606a">× u<tspan dy="4" font-size="9.5">j</tspan></text>
+
+  <!-- omega: shared by the copy circuit and the soft XOR -->
+  <path d="M290 112.5 H350" fill="none" stroke="#0969da" stroke-width="2.5" marker-end="url(#a-blue)"/>
+  <path d="M290 117.5 H350" fill="none" stroke="#bc4c00" stroke-width="2.5" marker-end="url(#a-orange)"/>
+  <text x="318" y="103" font-size="12.5" text-anchor="middle">× ω</text>
+
+  <!-- copy: A to the output -->
+  <path d="M420 115 H805 V235" fill="none" stroke="#bc4c00" stroke-width="2.5" marker-end="url(#a-orange)"/>
+  <text x="620" y="106" font-size="12.5" text-anchor="middle" fill="#bc4c00">× ρ<tspan dy="4" font-size="9.5">A</tspan></text>
+
+  <!-- soft XOR: A to neuron j to the output -->
+  <path d="M410 130 L560 186" fill="none" stroke="#0969da" stroke-width="2.5" marker-end="url(#a-blue)"/>
+  <text x="500" y="150" font-size="12.5" text-anchor="middle" fill="#0969da">× v<tspan dy="4" font-size="9.5">j</tspan></text>
+  <path d="M650 205 L770 249" fill="none" stroke="#0969da" stroke-width="2.5" marker-end="url(#a-blue)"/>
+  <text x="716" y="216" font-size="12.5" text-anchor="middle" fill="#0969da">× r<tspan dy="4" font-size="9.5">j</tspan></text>
+
+  <!-- gating: the neuron's read of position -->
+  <path d="M130 312 L560 216" fill="none" stroke="#1a7f37" stroke-width="2.5" marker-end="url(#a-green)"/>
+  <text x="300" y="262" font-size="12.5" text-anchor="middle" fill="#1a7f37">× q<tspan dy="4" font-size="9.5">j</tspan><tspan dy="-4">[t]</tspan></text>
+
+  <!-- output to probability -->
+  <path d="M840 255 H878" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#a-dark)"/>
+  <text x="886" y="251">σ(z<tspan dy="4" font-size="10">t</tspan><tspan dy="-4">)</tspan></text>
+  <g font-size="11.5" fill="#57606a">
+    <text x="886" y="270">probability that the</text>
+    <text x="886" y="285">next token is +1</text>
+  </g>
+
+  <!-- boxes: each is one column, a number held at position t -->
+  <g stroke="#57606a" stroke-width="1.2" fill="#f6f8fa">
+    <rect x="40" y="50" width="90" height="30" rx="5"/>
+    <rect x="40" y="90" width="90" height="30" rx="5"/>
+    <rect x="40" y="130" width="90" height="30" rx="5"/>
+    <rect x="40" y="170" width="90" height="30" rx="5"/>
+    <rect x="40" y="300" width="90" height="30" rx="5"/>
+    <rect x="350" y="100" width="70" height="30" rx="5"/>
+    <rect x="560" y="175" width="90" height="50" rx="5"/>
+    <rect x="770" y="235" width="70" height="40" rx="5"/>
+  </g>
+  <rect x="200" y="95" width="90" height="40" rx="20" fill="#ffffff" stroke="#57606a" stroke-width="1.2"/>
+  <g text-anchor="middle">
+    <text x="85" y="69">x<tspan dy="4" font-size="10">t−3</tspan></text>
+    <text x="85" y="109">x<tspan dy="4" font-size="10">t−2</tspan></text>
+    <text x="85" y="149">x<tspan dy="4" font-size="10">t−1</tspan></text>
+    <text x="85" y="189">x<tspan dy="4" font-size="10">t</tspan></text>
+    <text x="85" y="320">position t</text>
+    <text x="245" y="120">average</text>
+    <text x="385" y="119">A<tspan dy="4" font-size="10">t</tspan></text>
+    <text x="605" y="197">n<tspan dy="4" font-size="10">j</tspan></text>
+    <text x="605" y="216" font-size="11.5" fill="#57606a">ReLU of the sum</text>
+    <text x="805" y="259">z<tspan dy="4" font-size="10">t</tspan></text>
+  </g>
+  <g font-size="11.5" fill="#57606a" text-anchor="middle">
+    <text x="245" y="152">of the last four tokens,</text>
+    <text x="245" y="166">equal weights at the start</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="12.5">
+    <path d="M40 383 H72" stroke="#0969da" stroke-width="2.5"/>
+    <text x="82" y="387"><tspan font-weight="600">Soft XOR through neuron j:</tspan> weights ω, v<tspan dy="3" font-size="9.5">j</tspan><tspan dy="-3">, r</tspan><tspan dy="3" font-size="9.5">j</tspan><tspan dy="-3">. The dashed read u</tspan><tspan dy="3" font-size="9.5">j</tspan><tspan dy="-3"> of the current token is not one of them; it sets when the neuron is on.</tspan></text>
+    <path d="M40 405 H72" stroke="#bc4c00" stroke-width="2.5"/>
+    <text x="82" y="409"><tspan font-weight="600">Copy:</tspan> weights ω, ρ<tspan dy="3" font-size="9.5">A</tspan><tspan dy="-3">. It shares ω with the soft XOR.</tspan></text>
+    <path d="M40 427 H72" stroke="#1a7f37" stroke-width="2.5"/>
+    <text x="82" y="431"><tspan font-weight="600">Gating:</tspan> the neuron's read q<tspan dy="3" font-size="9.5">j</tspan><tspan dy="-3">[t] of position, one more weight on a neuron that is already active.</tspan></text>
+  </g>
+</svg>
