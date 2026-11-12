@@ -13,11 +13,16 @@ is the monomial's coefficient times the mean L-th derivative of the activation o
              of the plateau predicted from the unit's equations, started from the network's own initial
              weights, against the actual run. Then Adam on the same task.
   staircase  exact gradients: z1 + z1 z2 + z1 z2 z3 against z1 z2 z3 alone.
-  online     fresh samples every step: steps to learn a monomial against d and against the batch size,
-             for plain SGD and for Adam.
+  online     fresh samples every step, both layers trained: steps to learn a monomial against d and against
+             the batch size, for plain SGD and for Adam.
+  pullback   the same setting: the weights shrink during the plateau, and a wider network or a lower
+             learning rate on the output weights shortens the wait.
+  frozen     fresh samples with the output weights held fixed: against d and against the batch size.
 
 Needs numpy.  Run:  python leap.py            (plateau and staircase, about a minute)
                     python leap.py online     (about an hour and a half on one core)
+                    python leap.py pullback   (about four minutes)
+                    python leap.py frozen     (about five minutes)
 """
 import math
 import sys
@@ -221,19 +226,32 @@ def part_staircase():
 
 # ---------------------------------------------------------------- 3. online
 
-def online(d, L, B, kind, lr, seed, M=64, cap=3000000, drop=0.8):
-    """Fresh samples every step. Steps until the loss on a fixed test set is 20% under that of predicting zero."""
+def online(d, L, B, kind, lr, seed, M=64, cap=3000000, drop=0.8, freeze_a=False, lr_a=None, track=None):
+    """Fresh samples every step. Steps until the loss on a fixed test set is 20% under that of predicting zero.
+    freeze_a keeps the output weights at their initial values. lr_a gives them their own SGD learning rate.
+    track, a dict keyed by step, is filled with (rms output weight, rms first-layer weight on the monomial's
+    coordinates times sqrt(d))."""
     rng = np.random.default_rng(seed)
     net = Net(d, M, 1 / math.sqrt(d), 0.1, rng)
-    opt = (SGD if kind == 'sgd' else Adam)(net.params, lr)
     S = list(range(L))
     Xt = rng.integers(0, 2, (4096, d)) * 2.0 - 1
     yt = np.prod(Xt[:, S], axis=1)
+    opt = Adam((net.W, net.b) if freeze_a else net.params, lr) if kind == 'adam' else None
     for s in range(cap):
-        if s % 100 == 0 and 0.5 * float(np.mean((net.out(Xt) - yt) ** 2)) < drop * 0.5:
-            return s
+        if s % 100 == 0:
+            if 0.5 * float(np.mean((net.out(Xt) - yt) ** 2)) < drop * 0.5:
+                return s
+            if track is not None and s in track:
+                track[s] = (float(np.sqrt(np.mean(net.a ** 2))), float(np.sqrt(np.mean(net.W[:, S] ** 2))) * math.sqrt(d))
         X = rng.integers(0, 2, (B, d)) * 2.0 - 1
-        opt.step(net.loss_grad(X, np.prod(X[:, S], axis=1))[1])
+        gW, ga, gb = net.loss_grad(X, np.prod(X[:, S], axis=1))[1]
+        if opt:
+            opt.step((gW, gb) if freeze_a else (gW, ga, gb))
+        else:
+            net.W -= lr * gW
+            net.b -= lr * gb
+            if not freeze_a:
+                net.a -= (lr if lr_a is None else lr_a) * ga
     return None
 
 
@@ -272,7 +290,46 @@ def part_online():
     sweep("adam lr 0.003", (256, 512, 1024), lambda d, seed: online(d, 3, 32, 'adam', 0.003, seed))
 
 
-PARTS = {'plateau': part_plateau, 'staircase': part_staircase, 'online': part_online}
+def part_pullback():
+    print("=== pullback: why the joint-training wait at leap 3 rises so steeply (fresh samples, batch 32) ===")
+    print("    steps until the test loss is 20% under that of predicting zero; three seeds")
+    track = {t: None for t in (0, 1000, 10000, 50000, 100000, 150000)}
+    T = online(128, 3, 32, 'sgd', 0.1, 0, track=track)
+    print(f"  d = 128, 64 neurons, SGD, seed 0 (escapes at step {T}): the weights shrink during the plateau")
+    for t, v in track.items():
+        if v:
+            print(f"    step {t:7d}: rms output weight {v[0]:.4f}; rms first-layer weight on the monomial's coordinates, times sqrt(d): {v[1]:.3f}")
+    print("  d = 128, SGD with learning rate 0.1 on the first layer and the rate shown on the output weights")
+    for M, lra in ((64, 0.1), (64, 0.025), (256, 0.025), (512, 0.0125)):
+        print(f"    {M:4d} neurons, output-weight rate {lra:<6}: {[online(128, 3, 32, 'sgd', 0.1, seed, M=M, lr_a=lra, cap=400000) for seed in range(3)]}", flush=True)
+    print("  d = 128, Adam (learning rate 0.003)")
+    for M in (64, 256, 512):
+        print(f"    {M:4d} neurons: {[online(128, 3, 32, 'adam', 0.003, seed, M=M, cap=400000) for seed in range(3)]}", flush=True)
+    print("  d = 256 (with 64 neurons the online part gives medians of 1,023,900 for SGD and 120,700 for Adam)")
+    for M in (256, 1024):
+        print(f"    Adam, {M:4d} neurons: {[online(256, 3, 32, 'adam', 0.003, seed, M=M, cap=400000) for seed in range(3)]}", flush=True)
+    print(f"    SGD, 1024 neurons, output-weight rate 0.00625: {[online(256, 3, 32, 'sgd', 0.1, seed, M=1024, lr_a=0.00625, cap=400000) for seed in range(3)]}", flush=True)
+
+
+def part_frozen():
+    print("=== frozen: output weights held at their initial values (fresh samples, 64 neurons) ===")
+    print("    median over three seeds of the steps until the test loss is 20% under that of predicting zero")
+    settings = (('sgd', 0.1), ('adam', 0.003))
+
+    def row(label, values, run):
+        meds = [med([run(v, seed) for seed in range(3)]) for v in values]
+        print(f"    {label}  " + '   '.join(f"{v}: {m}" for v, m in zip(values, meds)) + f"   exponent {slope(values, meds):.2f}", flush=True)
+
+    for L in (3, 2):
+        print(f"  leap {L}, batch 32, against the dimension d")
+        for kind, lr in settings:
+            row(f"{kind:4s}", (32, 64, 128, 256, 512), lambda d, seed: online(d, L, 32, kind, lr, seed, freeze_a=True, cap=1500000))
+    print("  leap 3, d = 256, against the batch size")
+    for kind, lr in settings:
+        row(f"{kind:4s}", (8, 32, 128, 512, 2048), lambda B, seed: online(256, 3, B, kind, lr, seed, freeze_a=True, cap=1500000))
+
+
+PARTS = {'plateau': part_plateau, 'staircase': part_staircase, 'online': part_online, 'pullback': part_pullback, 'frozen': part_frozen}
 
 if __name__ == '__main__':
     for name in (sys.argv[1:] or ['plateau', 'staircase']):
