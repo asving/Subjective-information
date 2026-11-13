@@ -1,0 +1,14 @@
+=== count: the phase race under Adam, with each pool given 1, 3, 5 or 9 write weights in place of 1 ===
+    the weights the menus share start at the same values; x0 = 0.1, learning rate 0.01
+    step at which xor / cancel 2 / sure reach half their final strength (- = not within 6,000 steps), seeds 0-2;
+    then cancel 2's step over the XOR's
+  Adam's epsilon 1e-08
+    1 per pool: 47 / 78 / 100;  45 / 66 / 105;  36 / 61 / 104    ratio: 1.66, 1.47, 1.69
+    3 per pool: 47 / 82 / 119;  47 / 78 / 123;  36 / 81 / 111    ratio: 1.74, 1.66, 2.25
+    5 per pool: 48 / 144 / 292;  48 / 122 / 351;  37 / 549 / 693    ratio: 3.00, 2.54, 14.84
+    9 per pool: - / - / -;  - / - / -;  - / - / -    ratio: -, -, -
+  Adam's epsilon 1e-30
+    1 per pool: 47 / 79 / 103;  45 / 65 / 104;  36 / 60 / 102    ratio: 1.68, 1.44, 1.67
+    3 per pool: 47 / 79 / 104;  45 / 68 / 101;  36 / 68 / 102    ratio: 1.68, 1.51, 1.89
+    5 per pool: 47 / 80 / 107;  45 / 73 / 103;  36 / 77 / 103    ratio: 1.70, 1.62, 2.14
+    9 per pool: 47 / 88 / 111;  46 / 78 / 102;  36 / 71 / 114    ratio: 1.87, 1.70, 1.97

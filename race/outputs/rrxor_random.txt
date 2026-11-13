@@ -1,0 +1,95 @@
+1722 distinct prefixes; exact optimum 0.8234 bits per token
+
+== blind race ==
+STAGE 1 (single units and linked pairs)
+  loss 1.0000; 42 single and 3696 paired candidates (7s)
+   best under full attention (price/benefit):
+     price  9.58  benefit 0.0743  tokens: full      129  search        15027   head[1 back; q=x; k=x; mean]
+     price 14.58  benefit 0.0743  tokens: full      196  search       477524   head[1 back; q=x; k=x; mean]  +  head[all; q=-; k=head[1 back; q=x; k=x; mean]; mean]
+     price 15.58  benefit 0.0743  tokens: full      210  search       954811   head[1 back; q=x; k=x; mean]  +  head[all; q=-; k=head[1 back; q=x; k=x; mean]; min]
+     price 15.58  benefit 0.0743  tokens: full      210  search       954836   head[1 back; q=x; k=x; mean]  +  head[all; q=-; k=head[1 back; q=x; k=x; mean]; max]
+   best under search-limited:
+     price  9.58  benefit 0.0743  tokens: full      129  search        15027   head[1 back; q=x; k=x; mean]
+     price  8.00  benefit 0.0137  tokens: full      585  search        27510   head[all; q=x; k=x; mean]
+     price  6.00  benefit 0.0026  tokens: full     2286  search        36914   head[all; q=-; k=x; max]
+     price 10.00  benefit 0.0338  tokens: full      296  search        43908   head[every 2 back from 1; q=x; k=x; mean]
+STAGE 2, holding XOR (single units and linked pairs)
+  loss 0.9257; 129 single and 17286 paired candidates (26s)
+   best under full attention (price/benefit):
+     price 21.17  benefit 0.0455  tokens: full      465  search     74795365   head[1 back; q=x; k=XOR; mean]  +  head[every 3 back from 2; q=XOR; k=head[1 back; q=x; k=XOR; mean]; max]
+     price 21.17  benefit 0.0455  tokens: full      465  search     74795365   head[2 back; q=XOR; k=x; mean]  +  head[every 3 back from 2; q=XOR; k=head[2 back; q=XOR; k=x; mean]; max]
+     price 20.17  benefit 0.0357  tokens: full      566  search     47726586   head[1 back; q=x; k=XOR; mean]  +  head[every 3 back from 2; q=XOR; k=head[1 back; q=x; k=XOR; mean]; mean]
+     price 20.17  benefit 0.0357  tokens: full      566  search     47726586   head[2 back; q=XOR; k=x; mean]  +  head[every 3 back from 2; q=XOR; k=head[2 back; q=XOR; k=x; mean]; mean]
+     price 22.17  benefit 0.0369  tokens: full      601  search    184425853   head[every 3 back from 1; q=x; k=XOR; mean]  +  head[every 3 back from 2; q=XOR; k=head[every 3 back from 1; q=x; k=XOR; mean]; max]
+     price 22.17  benefit 0.0369  tokens: full      601  search    184425853   head[every 3 back from 2; q=XOR; k=x; mean]  +  head[every 3 back from 2; q=XOR; k=head[every 3 back from 2; q=XOR; k=x; mean]; max]
+   best under search-limited:
+     price  6.58  benefit 0.0093  tokens: full      707  search        15417   head[2 back; q=-; k=x; mean]
+     price  7.58  benefit 0.0054  tokens: full     1408  search        52560   head[every 3 back from 2; q=-; k=x; mean]
+     price  5.00  benefit 0.0009  tokens: full     5294  search        52643   head[all; q=-; k=x; mean]
+     price  7.00  benefit 0.0026  tokens: full     2719  search        73897   head[every 2 back from 0; q=-; k=x; mean]
+     price  9.58  benefit 0.0081  tokens: full     1176  search       136996   head[2 back; q=x; k=XOR; mean]
+     price  8.58  benefit 0.0034  tokens: full     2526  search       165105   head[every 3 back from 2; q=-; k=x; min]
+   adopted U2 = ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean')
+   adopted U3 = ('head', ('per', 3, 2), ('head', ('off', 1), ('x',), ('x',), 'mean'), ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean'), 'max')
+STAGE 3 (single units only)
+  loss 0.8802; 441 single and 0 paired candidates (1s)
+   best under full attention (price/benefit):
+     price  8.00  benefit 0.0112  tokens: full      713  search        33501   head[all; q=U3; k=U2; mean]
+     price  8.00  benefit 0.0112  tokens: full      713  search        33502   head[all; q=XOR; k=U2; mean]
+   best under search-limited:
+     price  6.58  benefit 0.0050  tokens: full     1319  search        28774   head[2 back; q=-; k=x; mean]
+     price  8.00  benefit 0.0112  tokens: full      713  search        33501   head[all; q=U3; k=U2; mean]
+   adopted U4 = ('head', ('all',), ('head', ('per', 3, 2), ('head', ('off', 1), ('x',), ('x',), 'mean'), ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean'), 'max'), ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean'), 'mean')
+STAGE 4 (single units only)
+  loss 0.8690; 666 single and 0 paired candidates (1s)
+   best under full attention (price/benefit):
+     price  8.00  benefit 0.0093  tokens: full      856  search        40231   head[all; q=XOR; k=U2; mean]
+     price  7.58  benefit 0.0054  tokens: full     1394  search        52026   head[every 3 back from 2; q=-; k=x; mean]
+   best under search-limited:
+     price  6.58  benefit 0.0036  tokens: full     1842  search        40175   head[2 back; q=-; k=x; mean]
+     price  8.00  benefit 0.0093  tokens: full      856  search        40231   head[all; q=XOR; k=U2; mean]
+   adopted U5 = ('head', ('all',), ('head', ('off', 1), ('x',), ('x',), 'mean'), ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean'), 'mean')
+STAGE 5 (single units only)
+  loss 0.8597; 937 single and 0 paired candidates (2s)
+   best under full attention (price/benefit):
+     price  7.58  benefit 0.0015  tokens: full     5221  search       194892   head[every 3 back from 0; q=-; k=XOR; mean]
+     price  9.00  benefit 0.0017  tokens: full     5356  search       444110   head[all; q=XOR; k=U2; min]
+   best under search-limited:
+     price  5.00  benefit 0.0009  tokens: full     5872  search        58400   head[all; q=-; k=XOR; mean]
+     price  6.00  benefit 0.0005  tokens: full    11993  search       193658   head[all; q=-; k=XOR; max]
+   adopted U6 = ('head', ('per', 3, 0), None, ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean')
+STAGE 6 (single units only)
+  loss 0.8582; 1254 single and 0 paired candidates (3s)
+   best under full attention (price/benefit):
+     price  9.00  benefit 0.0018  tokens: full     4994  search       414082   head[all; q=U5; k=U2; max]
+     price  8.00  benefit 0.0015  tokens: full     5422  search       254745   head[all; q=U6; k=U2; mean]
+   best under search-limited:
+     price  8.00  benefit 0.0015  tokens: full     5422  search       254745   head[all; q=U6; k=U2; mean]
+     price  5.00  benefit 0.0002  tokens: full    30728  search       305579   head[all; q=-; k=U5; mean]
+   adopted U7 = ('head', ('all',), ('head', ('all',), ('head', ('off', 1), ('x',), ('x',), 'mean'), ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean'), 'mean'), ('head', ('off', 1), ('x',), ('head', ('off', 1), ('x',), ('x',), 'mean'), 'mean'), 'max')
+STAGE 7 (single units only)
+  loss 0.8564; 1617 single and 0 paired candidates (4s)
+   best under full attention (price/benefit):
+     price  6.58  benefit 0.0022  tokens: full     2990  search        65227   head[3 back; q=-; k=U6; mean]
+     price 11.58  benefit 0.0033  tokens: full     3520  search      1349881   head[every 3 back from 1; q=U3; k=U2; max]
+   best under search-limited:
+     price  6.58  benefit 0.0022  tokens: full     2990  search        65227   head[3 back; q=-; k=U6; mean]
+     price  6.58  benefit 0.0012  tokens: full     5271  search       114990   head[3 back; q=-; k=XOR; mean]
+blind race ends at loss 0.8564 with 7 units, 63.3 bits
+
+== the reported circuit, built by hand ==
+   violation slot alone: benefit 0.00000
+   violation slot + XOR x OR of violations at offsets 2,5,8 (the next token)         price 21.17  benefit 0.0455  tokens: full    465  search     74795365
+   violation slot + XOR x OR of violations at offsets 0,3,6,9 (the current token)    price 21.17  benefit 0.0167  tokens: full   1270  search    204141564
+   violation slot + XOR x OR of violations at offsets 1,4,7,10 (the previous token)  price 21.17  benefit 0.0140  tokens: full   1512  search    243097484
+   XOR                                        loss 0.9257   circuit price   9.6 bits
+   + violation, XOR x OR at 2,5,8             loss 0.8802   circuit price  30.8 bits
+   + XOR x OR at 0,3,6,9                      loss 0.8713   circuit price  42.3 bits
+   + XOR x OR at 1,4,7,10                     loss 0.8574   circuit price  53.9 bits
+   + conjunction (both other phases dead)     loss 0.8347   circuit price  71.5 bits
+   as a lookup table:  XOR only 0.9257;  XOR + three OR flags 0.8245;  + position mod 3 0.8234
+
+== the phase belief ==
+   belief as a function of the three OR flags: 14 states, largest disagreement inside a state 1.67e-01
+   belief as a function of the three OR flags + position mod 3: 29 states, largest disagreement inside a state 3.33e-16
+   distinct beliefs over (next is XOR, current is XOR, previous is XOR): 12

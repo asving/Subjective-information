@@ -1,0 +1,72 @@
+=== sticky RRXOR in the toy transformer: the literal network against three simulators ===
+    literal: time at which |omega| passes 0.3 / the XOR appears (0.52) / the XOR is strong (0.6)
+    each simulator: its three times divided by the literal ones (none = never within 4 times the literal run)
+ scale     s seed  copy gain                literal                 two              frozen                live
+  0.10  0.00    0    -0.0000      226/   294/   326    0.96  1.05  none    0.97  1.05  none    0.96  0.99  1.12
+  0.10  0.00    1    -0.0000      484/   541/   575    1.32  1.36  2.61    1.34  1.39  1.45    1.22  1.24  1.33
+  0.10  0.00    2    -0.0000      156/   241/   285    0.71  0.75  none    0.72  0.75  1.45    0.80  0.89  1.23
+  0.10  0.10    0     0.0076      124/   204/   231    1.09  1.20  none    1.04  1.18  none    1.01  1.01  1.16
+  0.10  0.10    1     0.0076      341/   398/   431    1.30  1.41  2.27    1.30  1.41  1.47    1.20  1.23  1.33
+  0.10  0.10    2     0.0076      146/   216/   258    0.71  0.75  none    0.74  0.75  1.30    0.82  0.88  1.19
+  0.10  0.25    0     0.0189       63/   139/   172    1.13  1.40  none    1.08  1.33  none    1.05  1.01  1.12
+  0.10  0.25    1     0.0189      224/   276/   312    1.11  1.35  2.34    1.15  1.34  1.38    1.13  1.16  1.25
+  0.10  0.25    2     0.0189      107/   166/   210    0.75  0.77  none    0.78  0.76  1.05    0.84  0.89  1.16
+  0.10  0.40    0     0.0303       42/   102/   209    1.12  1.62  none    1.08  1.49  none    1.05  1.03  0.71
+  0.10  0.40    1     0.0303      164/   206/   254    1.05  1.37  2.53    1.14  1.36  1.32    1.14  1.17  1.18
+  0.10  0.40    2     0.0303       81/   141/   204    0.77  0.72  none    0.80  0.70  0.78    0.85  0.82  0.97
+  0.01  0.00    0    -0.0000     3154/  3230/  3261    1.01  1.03  none    1.01  1.02  none    1.00  1.00  1.01
+  0.01  0.00    1    -0.0000     7386/  7464/  7500    1.01  1.01  1.18    1.02  1.02  1.02    1.01  1.02  1.03
+  0.01  0.00    2    -0.0000     2043/  2131/  2174    0.98  0.98  none    0.98  0.98  1.11    0.98  0.99  1.04
+  0.01  0.10    0     0.0076      525/   717/   746    1.25  1.25  none    1.03  1.17  none    1.02  1.01  1.07
+  0.01  0.10    1     0.0076      800/  1039/  1071    1.20  1.11  1.60    1.02  1.04  1.08    1.02  1.02  1.06
+  0.01  0.10    2     0.0076      820/   992/  1036    1.05  1.00  none    0.99  0.97  1.16    1.00  1.01  1.08
+  0.01  0.25    0     0.0189      198/   406/   502    1.05  1.38  none    1.02  1.23  none    1.02  0.94  0.87
+  0.01  0.25    1     0.0189      302/   556/   636    1.03  1.09  1.81    1.01  0.98  0.95    1.01  0.93  0.91
+  0.01  0.25    2     0.0189      336/   538/   606    1.01  0.94  none    0.99  0.89  0.98    0.99  0.96  1.01
+  0.01  0.40    0     0.0303      122/   274/   394    1.03  1.59  none    1.01  1.38  none    1.01  0.97  0.79
+  0.01  0.40    1     0.0303      186/   377/   496    1.02  1.14  2.01    1.01  1.00  0.87    1.01  0.94  0.82
+  0.01  0.40    2     0.0303      212/   416/   586    1.00  0.83  none    0.99  0.77  0.66    0.99  0.85  0.74
+
+    simulator / literal, range over the three seeds
+    scale 0.1, s = 0.00,    two: omega 0.71 to 1.32;  onset 0.75 to 1.36;  strong 2.61 to 2.61 (2 of 3 never)
+    scale 0.1, s = 0.00, frozen: omega 0.72 to 1.34;  onset 0.75 to 1.39;  strong 1.45 to 1.45 (1 of 3 never)
+    scale 0.1, s = 0.00,   live: omega 0.80 to 1.22;  onset 0.89 to 1.24;  strong 1.12 to 1.33
+    scale 0.1, s = 0.10,    two: omega 0.71 to 1.30;  onset 0.75 to 1.41;  strong 2.27 to 2.27 (2 of 3 never)
+    scale 0.1, s = 0.10, frozen: omega 0.74 to 1.30;  onset 0.75 to 1.41;  strong 1.30 to 1.47 (1 of 3 never)
+    scale 0.1, s = 0.10,   live: omega 0.82 to 1.20;  onset 0.88 to 1.23;  strong 1.16 to 1.33
+    scale 0.1, s = 0.25,    two: omega 0.75 to 1.13;  onset 0.77 to 1.40;  strong 2.34 to 2.34 (2 of 3 never)
+    scale 0.1, s = 0.25, frozen: omega 0.78 to 1.15;  onset 0.76 to 1.34;  strong 1.05 to 1.38 (1 of 3 never)
+    scale 0.1, s = 0.25,   live: omega 0.84 to 1.13;  onset 0.89 to 1.16;  strong 1.12 to 1.25
+    scale 0.1, s = 0.40,    two: omega 0.77 to 1.12;  onset 0.72 to 1.62;  strong 2.53 to 2.53 (2 of 3 never)
+    scale 0.1, s = 0.40, frozen: omega 0.80 to 1.14;  onset 0.70 to 1.49;  strong 0.78 to 1.32 (1 of 3 never)
+    scale 0.1, s = 0.40,   live: omega 0.85 to 1.14;  onset 0.82 to 1.17;  strong 0.71 to 1.18
+    scale 0.01, s = 0.00,    two: omega 0.98 to 1.01;  onset 0.98 to 1.03;  strong 1.18 to 1.18 (2 of 3 never)
+    scale 0.01, s = 0.00, frozen: omega 0.98 to 1.02;  onset 0.98 to 1.02;  strong 1.02 to 1.11 (1 of 3 never)
+    scale 0.01, s = 0.00,   live: omega 0.98 to 1.01;  onset 0.99 to 1.02;  strong 1.01 to 1.04
+    scale 0.01, s = 0.10,    two: omega 1.05 to 1.25;  onset 1.00 to 1.25;  strong 1.60 to 1.60 (2 of 3 never)
+    scale 0.01, s = 0.10, frozen: omega 0.99 to 1.03;  onset 0.97 to 1.17;  strong 1.08 to 1.16 (1 of 3 never)
+    scale 0.01, s = 0.10,   live: omega 1.00 to 1.02;  onset 1.01 to 1.02;  strong 1.06 to 1.08
+    scale 0.01, s = 0.25,    two: omega 1.01 to 1.05;  onset 0.94 to 1.38;  strong 1.81 to 1.81 (2 of 3 never)
+    scale 0.01, s = 0.25, frozen: omega 0.99 to 1.02;  onset 0.89 to 1.23;  strong 0.95 to 0.98 (1 of 3 never)
+    scale 0.01, s = 0.25,   live: omega 0.99 to 1.02;  onset 0.93 to 0.96;  strong 0.87 to 1.01
+    scale 0.01, s = 0.40,    two: omega 1.00 to 1.03;  onset 0.83 to 1.59;  strong 2.01 to 2.01 (2 of 3 never)
+    scale 0.01, s = 0.40, frozen: omega 0.99 to 1.01;  onset 0.77 to 1.38;  strong 0.66 to 0.87 (1 of 3 never)
+    scale 0.01, s = 0.40,   live: omega 0.99 to 1.01;  onset 0.85 to 0.97;  strong 0.74 to 0.82
+
+    how much sooner the XOR appears in the literal network than at s = 0, same seed
+    scale 0.1, s = 0.1: 1.4x, 1.4x, 1.1x
+    scale 0.1, s = 0.25: 2.1x, 2.0x, 1.5x
+    scale 0.1, s = 0.4: 2.9x, 2.6x, 1.7x
+    scale 0.01, s = 0.1: 4.5x, 7.2x, 2.1x
+    scale 0.01, s = 0.25: 8.0x, 13.4x, 4.0x
+    scale 0.01, s = 0.4: 11.8x, 19.8x, 5.1x
+
+    the head's attention to the token one back when the XOR appears in the literal network (uniform: 0.25)
+    scale 0.1, s = 0.0: 0.283, 0.341, 0.299
+    scale 0.1, s = 0.1: 0.275, 0.332, 0.292
+    scale 0.1, s = 0.25: 0.243, 0.305, 0.269
+    scale 0.1, s = 0.4: 0.196, 0.274, 0.223
+    scale 0.01, s = 0.0: 0.309, 0.319, 0.325
+    scale 0.01, s = 0.1: 0.285, 0.285, 0.300
+    scale 0.01, s = 0.25: 0.175, 0.163, 0.196
+    scale 0.01, s = 0.4: 0.100, 0.084, 0.085

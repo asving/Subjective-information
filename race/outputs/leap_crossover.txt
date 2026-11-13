@@ -1,0 +1,8 @@
+=== crossover: output weights frozen, leap 3, batch 8, 64 neurons, fresh samples ===
+    steps until the test loss is 20% under that of predicting zero; three seeds (None = not within 2,000,000 steps)
+    d =   256 adam: [10000, 9600, 12900]
+    d =   256 sgd : [21400, 26400, 33400]
+    d =  1024 adam: [None, None, None]
+    d =  1024 sgd : [194400, 368200, 269800]
+    (3449 s)
+

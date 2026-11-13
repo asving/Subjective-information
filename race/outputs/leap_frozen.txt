@@ -1,0 +1,13 @@
+=== frozen: output weights held at their initial values (fresh samples, 64 neurons) ===
+    median over three seeds of the steps until the test loss is 20% under that of predicting zero
+  leap 3, batch 32, against the dimension d
+    sgd   32: 7700   64: 17600   128: 18000   256: 19200   512: 31300   exponent 0.42
+    adam  32: 1300   64: 2100   128: 2900   256: 4200   512: 12300   exponent 0.75
+  leap 2, batch 32, against the dimension d
+    sgd   32: 3600   64: 3300   128: 4000   256: 4900   512: 5400   exponent 0.17
+    adam  32: 700   64: 700   128: 900   256: 1100   512: 1400   exponent 0.27
+  leap 3, d = 256, against the batch size
+    sgd   8: 26400   32: 19200   128: 19500   512: 20000   2048: 19800   exponent -0.04
+    adam  8: 10000   32: 4200   128: 2000   512: 1000   2048: 600   exponent -0.51
+    (368 s)
+

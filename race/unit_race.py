@@ -46,6 +46,7 @@ as Gaussians of scale x0. The race is run as gradient flow and under Adam with e
 Run:  python3 unit_race.py            (sticky RRXOR: the table; about a minute)
       python3 unit_race.py trace      (sticky RRXOR, one run in detail: s = 0.25, initial scale 0.01, seed 0)
       python3 unit_race.py phase      (the phase circuit; a few seconds)
+      python3 unit_race.py count      (the phase circuit under Adam with more weights per pool; a few seconds)
 """
 import itertools
 import math
@@ -119,7 +120,7 @@ class Race:
         self.t += dt
         return loss, p
 
-    def adam_step(self, lr=0.01):
+    def adam_step(self, lr=0.01, eps=1e-8):
         """One Adam step on the exact gradient. Returns the loss and probabilities before the step."""
         if not hasattr(self, 'm'):
             self.m, self.v, self.n = dict.fromkeys(self.w, 0.0), dict.fromkeys(self.w, 0.0), 0
@@ -129,7 +130,7 @@ class Race:
             g = -rate[f]
             self.m[f] = 0.9 * self.m[f] + 0.1 * g
             self.v[f] = 0.999 * self.v[f] + 0.001 * g * g
-            self.w[f] -= lr * (self.m[f] / (1 - 0.9 ** self.n)) / (math.sqrt(self.v[f] / (1 - 0.999 ** self.n)) + 1e-8)
+            self.w[f] -= lr * (self.m[f] / (1 - 0.9 ** self.n)) / (math.sqrt(self.v[f] / (1 - 0.999 ** self.n)) + eps)
         self.t += 1
         return loss, p
 
@@ -375,12 +376,16 @@ def best_readout(cells, units):
     return loss
 
 
-def run_phase(cells, units, x0, seed, adam, ref, cap=12000):
-    """One race. Returns [(time, loss, strengths)], strength = product of a unit's factors."""
+def run_phase(cells, units, x0, seed, adam, ref, cap=12000, eps=1e-8, watch=()):
+    """One race. Returns [(time, loss, strengths, sizes of the watched factors)]; a strength is the product
+    of a unit's factors. Factors whose names end in a prime are extras: they are drawn from a second stream,
+    so that the other factors start at the same values with or without them."""
     import random
-    rnd = random.Random(seed)
+    rnd, rnd2 = random.Random(seed), random.Random(1000 + seed)
     names = sorted({f for _, F, _ in units for f in F})
-    race = Race(cells, units, {f: rnd.gauss(0, x0) for f in names}, floor=x0 / 10)
+    w0 = {f: rnd.gauss(0, x0) for f in names if not f.endswith("'")}
+    w0.update({f: rnd2.gauss(0, x0) for f in names if f.endswith("'")})
+    race = Race(cells, units, w0, floor=x0 / 10)
     hist = []
     while len(hist) < cap:
         st = []
@@ -390,8 +395,9 @@ def run_phase(cells, units, x0, seed, adam, ref, cap=12000):
                 x *= race.w[f]
             st.append(x)
         t = race.t
-        loss, _ = race.adam_step(0.01) if adam else race.step()
-        hist.append((t, loss, st))
+        sizes = [abs(race.w[f]) for f in watch]
+        loss, _ = race.adam_step(0.01, eps) if adam else race.step()
+        hist.append((t, loss, st, sizes))
         if loss < ref + 0.0005:
             break
     return hist
@@ -402,6 +408,10 @@ def part_phase():
     ref = best_readout(cells, units)
     print("=== the phase circuit of random-start RRXOR, from two primitives, raced in time ===")
     print(f"    {len(cells)} cells, {len(units)} units; best linear readout of their shapes: {ref:.4f} bits per token")
+    by_name = {u[0]: u for u in units}
+    for label in (('xor',), ('xor', 'two back'), ('xor', 'cancel 2'), ('xor', 'cancel 2', 'cancel 0', 'cancel 1')):
+        print(f"    best linear readout of {' + '.join(label)}: {best_readout(cells, [by_name[n] for n in label]):.4f}")
+    print("    (with all six the loss keeps falling slowly as the strength of sure grows; every run below stops 0.0005 above the value printed first)")
     print("    each unit: time (flow) or step (Adam) at which its strength first reaches half its final value; loss at that moment")
     for adam, x0 in ((False, 0.1), (False, 0.5), (True, 0.1), (True, 0.5)):
         for seed in range(3):
@@ -411,24 +421,51 @@ def part_phase():
             for j, (name, _, _) in enumerate(units):
                 if abs(final[j]) < 0.02:
                     continue
-                t, loss = next((t, loss) for t, loss, st in hist if st[j] * final[j] > 0 and abs(st[j]) >= 0.5 * abs(final[j]))
+                t, loss = next((t, loss) for t, loss, st, _ in hist if st[j] * final[j] > 0 and abs(st[j]) >= 0.5 * abs(final[j]))
                 arrive.append((t, name, loss, final[j]))
             arrive.sort()
             j = [u[0] for u in units].index('two back')
             pk = max(hist, key=lambda row: abs(row[2][j]))
             print(f"  {'Adam' if adam else 'flow'}, x0 = {x0}, seed {seed}: ends at {hist[-1][0]:.0f} with loss {hist[-1][1]:.4f}")
             print("      " + ';  '.join(f"{name} at {t:.0f} (loss {loss:.4f}, strength {fs:+.2f})" for t, name, loss, fs in arrive))
-            half = next(t for t, _, st in hist if st[j] * pk[2][j] > 0 and abs(st[j]) >= 0.5 * abs(pk[2][j]))
+            half = next(t for t, _, st, _ in hist if st[j] * pk[2][j] > 0 and abs(st[j]) >= 0.5 * abs(pk[2][j]))
             print(f"      two back: half of its largest strength at {half:.0f}, largest {pk[2][j]:+.2f} at {pk[0]:.0f}, final {final[j]:+.2f}", flush=True)
+    path = ('b', 'c2', 'f2', 'rho2')
     for adam, seed in ((False, 1), (True, 1)):
-        hist = run_phase(cells, units, 0.1, seed, adam, ref)
-        print(f"\n  one run in detail: {'Adam' if adam else 'gradient flow'}, x0 = 0.1, seed {seed}; strength of each unit")
-        print(f"  {'time' if not adam else 'step':>6s} {'loss':>7s}  " + ' '.join(f"{u[0]:>9s}" for u in units))
+        hist = run_phase(cells, units, 0.1, seed, adam, ref, watch=path)
+        print(f"\n  one run in detail: {'Adam' if adam else 'gradient flow'}, x0 = 0.1, seed {seed}; strength of each unit,")
+        print("  then the sizes of the four weights of cancel 2 that start small (b, c2, f2, rho2)")
+        print(f"  {'time' if not adam else 'step':>6s} {'loss':>7s}  " + ' '.join(f"{u[0]:>9s}" for u in units) + "     " + ' '.join(f"{f:>6s}" for f in path))
         last = -1.0
-        for t, loss, st in hist:
-            if t >= last * (1.6 if not adam else 1.25) + (5 if not adam else 8) or t == hist[-1][0]:
-                print(f"  {t:6.0f} {loss:7.4f}  " + ' '.join(f"{x:+9.3f}" for x in st))
+        for t, loss, st, sizes in hist:
+            if (t < 1400 and t >= last * (1.6 if not adam else 1.25) + (5 if not adam else 8)) or (t >= 1400 and t >= last + 60) or t == hist[-1][0]:
+                print(f"  {t:6.0f} {loss:7.4f}  " + ' '.join(f"{x:+9.3f}" for x in st) + "     " + ' '.join(f"{x:6.3f}" for x in sizes))
                 last = t
+
+
+def part_count():
+    """Under Adam, does the number of weights in a unit move its arrival?"""
+    cells, units = phase_menu()
+    names = [u[0] for u in units]
+    print("=== count: the phase race under Adam, with each pool given 1, 3, 5 or 9 write weights in place of 1 ===")
+    print("    the weights the menus share start at the same values; x0 = 0.1, learning rate 0.01")
+    print("    step at which xor / cancel 2 / sure reach half their final strength (- = not within 6,000 steps), seeds 0-2;")
+    print("    then cancel 2's step over the XOR's")
+    for eps in (1e-8, 1e-30):
+        print(f"  Adam's epsilon {eps:g}")
+        for n in (1, 3, 5, 9):
+            us = [(name, tuple(g for f in F for g in ([f] + [f + "'" * (i + 1) for i in range(n - 1)] if f.startswith('c') else [f])), phi)
+                  for name, F, phi in units]
+            ref = best_readout(cells, us)
+            res = []
+            for seed in range(3):
+                hist = run_phase(cells, us, 0.1, seed, True, ref, cap=6000, eps=eps)
+                final = hist[-1][2]
+                done = hist[-1][1] < ref + 0.0005
+                res.append([next(t for t, _, st, _ in hist if st[j] * final[j] > 0 and abs(st[j]) >= 0.5 * abs(final[j])) if done else None
+                            for j in (names.index('xor'), names.index('cancel 2'), names.index('sure'))])
+            print(f"    {n} per pool: " + ';  '.join(' / '.join(f"{x:.0f}" if x is not None else '-' for x in r) for r in res)
+                  + "    ratio: " + ', '.join(f"{r[1] / r[0]:.2f}" if r[1] is not None else '-' for r in res), flush=True)
 
 
 if __name__ == '__main__':
@@ -436,5 +473,7 @@ if __name__ == '__main__':
         main_trace()
     elif sys.argv[1:] == ['phase']:
         part_phase()
+    elif sys.argv[1:] == ['count']:
+        part_count()
     else:
         main()

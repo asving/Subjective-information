@@ -1,0 +1,18 @@
+=== scale: one-layer transformer, aligned RRXOR, exact gradients; every weight matrix starts at std 0.1 * s ===
+    step at which the loss first falls under 0.95 bits; plain gradient descent with learning rate 1, Adam with 0.001
+     s   gradient descent, seeds      Adam, seeds 0-2   
+  1.40   [51, 51, 67]                 [36, 38, 37]      
+  1.00   [138, 140, 186]              [44, 46, 45]      
+  0.70   [413, 452, 645]              [53, 53, 52]      
+  0.50   [1453, 1620, 2447]           [59, 57, 57]      
+  0.35   [5865, 6588, 10545]          [64, 62, 61]      
+  0.25   [22289, 25382, 41049]        [67, 66, 65]      
+  0.18   [82864]                      [72, 74, 72]      
+    local exponent of the wait in 1/s, seed 0:
+      s = 1.4 to 1.0:  gradient descent 2.96   Adam 0.60
+      s = 1.0 to 0.7:  gradient descent 3.07   Adam 0.52
+      s = 0.7 to 0.5:  gradient descent 3.74   Adam 0.32
+      s = 0.5 to 0.35:  gradient descent 3.91   Adam 0.23
+      s = 0.35 to 0.25:  gradient descent 3.97   Adam 0.14
+      s = 0.25 to 0.18:  gradient descent 4.00   Adam 0.22
+    (1153 s)

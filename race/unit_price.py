@@ -11,7 +11,7 @@ dormant factors, k of them, each of size x0. Call the gain g the correlation of 
   Adam                     each factor moves about one learning rate per step whatever the size of
                            its gradient, so the wait is a travel distance and does not depend on k or x0
 
-The script checks this four ways.
+The script has six parts.
   chain    a product of k weights fitted to a constant: the two laws in the simplest case
   plateau  the toy transformer of gd_rrxor.py. Its first circuit is a bundle: a head that copies
            earlier tokens (useless alone) and a neuron that reads it. Three dormant factors:
@@ -20,9 +20,12 @@ The script checks this four ways.
   adam     the same network trained with Adam: initial scales, seeds, batch sizes
   order    random-start RRXOR (rrxor_random.py): rank every candidate by the signal-to-noise
            ratio of its gradient alone, with no prices
+  shapes   the soft XOR of the toy transformer: the gain of the shape it has at the start against
+           the gain of the clean XOR, and what the clean XOR achieves once fitted
+  pool     random-start RRXOR with the XOR in place: how many candidates have what gain
 
-Run:  python3 unit_price.py                (about a minute)
-      python3 unit_price.py plateau        (one part: chain, plateau, adam or order)
+Run:  python3 unit_price.py                (about two minutes)
+      python3 unit_price.py plateau        (one part: chain, plateau, adam, order, shapes or pool)
 """
 import math
 import random
@@ -252,7 +255,7 @@ def part_order():
         for label, us in extra:
             s, g = next((s, g) for s, g, c in cand if c == us)
             above = sum(1 for s2, _, _ in cand if s2 > s + 1e-12)
-            print(f"    {s:.4f}   {label}: {above} candidates score higher; gain {g:.4f}, about {factors(us)} factors")
+            print(f"    {s:.4f}   {label}: {above} candidates score higher; gain {g:.4f}, about {factors(us)} factors by the rough count")
             out.append((g, factors(us)))
         return out
 
@@ -272,10 +275,79 @@ def part_order():
     for _ in range(60):
         mid = (lo + hi) / 2
         lo, hi = (mid, hi) if h(kb, mid) / gb > h(kt, mid) / gt else (lo, mid)
-    print(f"  under the multiplying law h_k(x0)/gain, the phase circuit comes before the trick only if x0 > {hi:.2f}")
+    print("  the rough count charges one weight per write, per column read, per position pattern and per sharp pool;")
+    print("  unit_race.py phase uses a leaner count (one write per use of a primitive, one read at the output)")
+    print(f"  by the rough count, under the multiplying law h_k(x0)/gain, the phase circuit comes before the trick only if x0 > {hi:.2f}")
 
 
-PARTS = {'chain': part_chain, 'plateau': part_plateau, 'adam': part_adam, 'order': part_order}
+# ---------------------------------------------------------------- 5. the soft XOR at the start and once grown
+
+def part_shapes():
+    ideal = sum(w * (y - 0.5) * (-xs[0] * xs[1]) for t, xs, ds, w, y in FULL if t >= 2)
+    clean = sum(w * (y - 0.5) * (1 if xs[0] < 0 else 0) * sum(xs[d] for d in ds) / len(ds) for t, xs, ds, w, y in FULL)
+    g0 = gains(Net(0.1, 0))
+
+    def loss(s):
+        tot = 0.0
+        for t, xs, ds, w, y in FULL:
+            z = s * (-xs[0] * xs[1]) if t >= 2 else 0.0
+            tot += w * (max(z, 0) + math.log1p(math.exp(-abs(z))) - y * z)
+        return tot / math.log(2)
+
+    lo, hi = 0.0, 5.0
+    for _ in range(80):
+        a, b = lo + (hi - lo) / 3, hi - (hi - lo) / 3
+        lo, hi = (lo, b) if loss(a) < loss(b) else (a, hi)
+    s = (lo + hi) / 2
+    print("=== shapes: the soft XOR of the toy transformer, as it is at the start and as it is once grown ===")
+    print(f"    gain of the clean shape, -x_t * x_(t-1) at every position: {ideal:.4f}")
+    print(f"    gain of [x_t = -1] * (mean of the attended tokens), a neuron switched by the current token alone: {clean:.4f}, or {clean / ideal:.3f} of the clean one")
+    print("    gains of the six neurons' shapes at the start, seed 0: " + ' '.join(f"{g:+.4f}" for g in g0) + f";  the largest is {max(abs(g) for g in g0) / ideal:.3f} of the clean one")
+    print(f"    the clean shape with one strength, fitted: strength {s:.3f}, probability given to the XOR {1 / (1 + math.exp(-s)):.3f}, loss {loss(s):.4f}")
+
+
+# ---------------------------------------------------------------- 6. the pool of candidates on random-start RRXOR
+
+def part_pool():
+    import rrxor_random as rr
+    X, W, Y = rr.X, rr.W, rr.Y
+    XOR = ('head', ('off', 1), X, X, 'mean')
+    VIO = ('head', ('off', 1), X, XOR, 'mean')
+    rr.NAMES[XOR] = 'XOR'
+    _, pc = rr.fit([XOR])
+    R = [w * p - y for w, p, y in zip(W, pc, Y)]
+
+    def gain(u):
+        return abs(sum(r * a for r, a in zip(R, rr.val(u))))
+
+    slots = [X, XOR]
+    singles = [u for u in rr.gen_units(slots) if u != XOR]
+    cand = [(gain(u), (u,)) for u in singles]
+    for u1 in singles:
+        for u2 in rr.gen_units(slots + [u1], must=u1):
+            if u2 != u1:
+                cand.append((gain(u2), (u1, u2)))
+    print("=== pool: every candidate for the next unit on random-start RRXOR, once the XOR is in ===")
+    print(f"    {len(singles)} single units and {len(cand) - len(singles)} linked pairs (the second unit reads the first); gain of the last unit's output")
+    for lo, hi in ((0, 1e-9), (1e-9, 0.005), (0.005, 0.05), (0.05, 1)):
+        n1 = sum(1 for g, us in cand if lo <= g < hi and len(us) == 1)
+        n2 = sum(1 for g, us in cand if lo <= g < hi and len(us) == 2)
+        print(f"    gain {'exactly 0' if hi == 1e-9 else f'from {lo} to {hi}':>18s}: {n1:4d} single units, {n2:6d} pairs")
+    look = {us: g for g, us in cand}
+    for label, us in (("v alone (the token times e one back)", (VIO,)),
+                      ("e times e one back", (('head', ('off', 1), XOR, XOR, 'mean'),)),
+                      ("OR of e over every third position back", (('head', ('per', 3, 2), None, XOR, 'max'),)),
+                      ("mean of e over all positions", (('head', ('all',), None, XOR, 'mean'),)),
+                      ("the token two back (the trick)", (('head', ('off', 2), None, X, 'mean'),)),
+                      ("v, then the OR of v every third back, alone (the flag)", (VIO, ('head', ('per', 3, 2), None, VIO, 'max'))),
+                      ("v, then e times the OR of v every third back (the phase gate)", (VIO, ('head', ('per', 3, 2), XOR, VIO, 'max'))),
+                      ("v, then e times the OR of v every second back", (VIO, ('head', ('per', 2, 0), XOR, VIO, 'max'))),
+                      ("v, then e times the mean of v over all positions", (VIO, ('head', ('all',), XOR, VIO, 'mean'))),
+                      ("v, then e times the OR of v over all positions", (VIO, ('head', ('all',), XOR, VIO, 'max')))):
+        print(f"    gain {look[us]:.4f}   {label}")
+
+
+PARTS = {'chain': part_chain, 'plateau': part_plateau, 'adam': part_adam, 'order': part_order, 'shapes': part_shapes, 'pool': part_pool}
 
 if __name__ == '__main__':
     for name in (sys.argv[1:] or list(PARTS)):

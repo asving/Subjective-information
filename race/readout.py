@@ -85,13 +85,13 @@ def representatives(Xs):
     return torch.tensor([a for a, _ in idx]), torch.tensor([b for _, b in idx])
 
 
-def train(kind, lr, std, seed, max_steps, every, stop=0.826, extra=None, beta2=0.999):
+def train(kind, lr, std, seed, max_steps, every, stop=0.826, extra=None, beta2=0.999, norm=True):
     """Train and read out. Returns rows (step, loss, explained, strengths of the six units[, shares of the larger fits])."""
     Xs, Ws = rt.random_start()
     Phi, w, M = design()
     ri, rp = representatives(Xs)
     torch.manual_seed(seed)
-    net = rt.Transformer(std=std)
+    net = rt.Transformer(std=std, norm=norm)
     opt = torch.optim.Adam(net.parameters(), lr, betas=(0.9, beta2)) if kind == 'adam' else torch.optim.SGD(net.parameters(), lr)
     rows = []
     for step in range(max_steps + 1):

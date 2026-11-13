@@ -1,0 +1,45 @@
+dimension 4, 10 tokens, 300 sequences
+optimum MSE by position: 1.00 0.73 0.45 0.25 0.00 0.00 0.00 0.00 0.00   mean 0.2697
+STAGE 1 (single units and pairs)
+  MSE 1.0000; 11 single and 517 paired candidates (3s)
+   best under full attention (price/benefit):
+     price 17.58  benefit 0.5050  ratio    34.8  search    561725   copy[x from 1 back]  +  match[over all incl. here: <x here, copy[x from 1 back] there> x x there]
+     price 17.58  benefit 0.4705  ratio    37.4  search    602882   copy[x from 1 back]  +  match[over all earlier: <x here, copy[x from 1 back] there> x x there]
+     price 16.00  benefit 0.3309  ratio    48.4  search    285759   copy[x from all earlier]  +  match[over all incl. here: <x here, copy[x from all earlier] there> x x there]
+     price 16.00  benefit 0.3223  ratio    49.6  search    293380   copy[x from all earlier]  +  match[over all earlier: <x here, copy[x from all earlier] there> x x there]
+   best under search-limited:
+     price  5.00  benefit 0.0627  ratio    79.7  search       793   copy[x from all earlier]
+     price  6.58  benefit 0.0792  ratio    83.1  search      1813   copy[x from 3 back]
+     price  5.00  benefit 0.0266  ratio   187.6  search      1866   copy[x from all incl. here]
+     price  6.58  benefit 0.0689  ratio    95.6  search      2085   copy[x from 1 back]
+   adopted U1 = ('head', ('off', 1), None, None, ('x',))
+   adopted U2 = ('head', ('all',), ('x',), ('head', ('off', 1), None, None, ('x',)), ('x',))
+   MSE by position: 1.00 0.73 0.54 0.48 0.38 0.36 0.33 0.33 0.30
+STAGE 2 (single units only)
+  MSE 0.4950; 175 single and 0 paired candidates (1s)
+   best under full attention (price/benefit):
+     price 11.00  benefit 0.1142  ratio    96.3  search     25962   match[over all incl. here: <U1 here, U1 there> x U2 there]
+     price 11.00  benefit 0.1142  ratio    96.3  search     25962   match[over all incl. here: <x here, x there> x U2 there]
+   best under search-limited:
+     price  6.58  benefit 0.0424  ratio   155.5  search      3391   copy[U2 from 2 back]
+     price  5.00  benefit 0.0074  ratio   675.7  search      6720   copy[U2 from all incl. here]
+   adopted U3: reads U1, U1, U2 over ('all',)
+STAGE 3 (single units only)
+  MSE 0.3808; 401 single and 0 paired candidates (2s)
+   best under full attention (price/benefit):
+     price 11.00  benefit 0.0241  ratio   457.0  search    123136   match[over all incl. here: <U1 here, U1 there> x U3 there]
+     price 11.00  benefit 0.0241  ratio   457.0  search    123136   match[over all incl. here: <x here, x there> x U3 there]
+   best under search-limited:
+     price  6.58  benefit 0.0024  ratio  2725.5  search     59453   copy[U3 from 2 back]
+     price 11.00  benefit 0.0241  ratio   457.0  search    123136   match[over all incl. here: <U1 here, U1 there> x U3 there]
+   adopted U4: reads U1, U1, U3 over ('all',)
+STAGE 4 (single units only)
+  MSE 0.3568; 771 single and 0 paired candidates (3s)
+   best under full attention (price/benefit):
+     price 11.00  benefit 0.0040  ratio  2718.1  search    732457   match[over all incl. here: <x here, x there> x U4 there]
+     price 11.00  benefit 0.0040  ratio  2718.1  search    732457   match[over all incl. here: <U1 here, U1 there> x U4 there]
+   best under search-limited:
+     price  6.58  benefit 0.0003  ratio 19080.2  search    416206   copy[U1 from 2 back]
+     price  6.58  benefit 0.0003  ratio 19080.2  search    416206   copy[x from 3 back]
+   adopted U5: reads x, x, U4 over ('all',)
+final MSE 0.3527 (optimum 0.2697); by position: 1.00 0.73 0.50 0.36 0.19 0.14 0.10 0.08 0.07

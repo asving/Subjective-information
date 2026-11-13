@@ -1,0 +1,24 @@
+=== pullback: why the joint-training wait at leap 3 rises so steeply (fresh samples, batch 32) ===
+    steps until the test loss is 20% under that of predicting zero; three seeds
+  d = 128, 64 neurons, SGD, seed 0 (escapes at step 197500): the weights shrink during the plateau
+    step       0: rms output weight 0.1030; rms first-layer weight on the monomial's coordinates, times sqrt(d): 0.984
+    step    1000: rms output weight 0.0446; rms first-layer weight on the monomial's coordinates, times sqrt(d): 0.982
+    step   10000: rms output weight 0.0364; rms first-layer weight on the monomial's coordinates, times sqrt(d): 0.927
+    step   50000: rms output weight 0.0337; rms first-layer weight on the monomial's coordinates, times sqrt(d): 0.766
+    step  100000: rms output weight 0.0309; rms first-layer weight on the monomial's coordinates, times sqrt(d): 0.596
+    step  150000: rms output weight 0.0296; rms first-layer weight on the monomial's coordinates, times sqrt(d): 0.504
+  d = 128, SGD with learning rate 0.1 on the first layer and the rate shown on the output weights
+      64 neurons, output-weight rate 0.1   : [197500, 43700, 178700]
+      64 neurons, output-weight rate 0.025 : [18600, 22800, 30500]
+     256 neurons, output-weight rate 0.025 : [10800, 6900, 8600]
+     512 neurons, output-weight rate 0.0125: [8300, 7300, 7500]
+  d = 128, Adam (learning rate 0.003)
+      64 neurons: [5200, 3300, 2800]
+     256 neurons: [2400, 2200, 2700]
+     512 neurons: [4000, 2100, 1800]
+  d = 256 (with 64 neurons the online part gives medians of 1,023,900 for SGD and 120,700 for Adam)
+    Adam,  256 neurons: [5700, 39900, 44900]
+    Adam, 1024 neurons: [24800, 26500, 10700]
+    SGD, 1024 neurons, output-weight rate 0.00625: [16500, 12000, 9200]
+    (462 s)
+

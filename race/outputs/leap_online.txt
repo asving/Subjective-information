@@ -1,0 +1,22 @@
+=== online: fresh samples every step, 64 neurons, first-layer weights of size 1/sqrt(d), output weights 0.1 ===
+    steps until the test loss is 20% under that of predicting zero; three seeds (None = not within 3,000,000 steps)
+  monomial z1...z2, batch 32: against the dimension d
+    sgd  lr 0.1  16: [1000, 400, 600]   32: [1600, 1300, 1400]   64: [2400, 1600, 2100]   128: [3100, 4400, 3600]   256: [7500, 9300, 10000]
+                 medians [600, 1400, 2100, 3600, 9300]; exponent over the last three points 1.07
+    adam lr 0.003  16: [400, 400, 300]   32: [500, 500, 500]   64: [800, 600, 600]   128: [1000, 900, 900]   256: [1500, 1300, 1500]
+                   medians [400, 500, 600, 900, 1500]; exponent over the last three points 0.66
+  monomial z1...z3, batch 32: against the dimension d
+    sgd  lr 0.1  16: [1600, 700, 1400]   32: [5800, 3000, 2100]   64: [8700, 6700, 5200]   128: [197500, 43700, 178700]   256: [1023900, 1029800, 840900]
+                 medians [1400, 3000, 6700, 178700, 1023900]; exponent over the last three points 3.63
+    adam lr 0.003  16: [500, 500, 500]   32: [1200, 700, 700]   64: [1300, 1200, 1700]   128: [5200, 3300, 2800]   256: [77400, 157400, 120700]
+                   medians [500, 700, 1300, 3300, 120700]; exponent over the last three points 3.27
+  monomial z1 z2 z3, d = 128: against the batch size
+    sgd  lr 0.1  8: [276500, 399400, 229300]   32: [197500, 43700, 178700]   128: [18500, 29700, 22200]   512: [13200, 26500, 29600]
+                 medians [276500, 178700, 22200, 26500]; exponent over the last three points -0.69
+    adam lr 0.003  8: [7700, 10600, 14800]   32: [5200, 3300, 2800]   128: [900, 1100, 1100]   512: [500, 500, 600]
+                   medians [10600, 3300, 1100, 500]; exponent over the last three points -0.68
+  monomial z1 z2 z3, Adam, batch 32: larger d
+    adam lr 0.003  256: [77400, 157400, 120700]   512: [2215900, 2707700, None]   1024: [None, None, None]
+                   medians [120700, None, None]; exponent over the last three points nan
+    (7379 s)
+

@@ -1,0 +1,91 @@
+=== chain: a product of k weights, each starting at 0.1, fitted to the constant 1 ===
+    time = steps x learning rate until the product passes 1/2
+   k  law h_k(x0)  plain gradient descent     Adam
+   1          0.9                     0.6     0.43
+   2          2.3                     2.3     0.54
+   3          9.0                     9.2     0.56
+   4         49.5                    49.8     0.58
+   6       2499.7                  2500.1     0.61
+
+=== plateau: the soft-XOR bundle of the toy transformer (three dormant factors: omega, v_j, r_j) ===
+    predicted = blow-up time of the three-factor equations from the network's own initial weights;
+    actual = time at which gradient descent first brings the loss under 0.95
+    gains of the six neurons, seed 0: -0.0000 +0.0057 +0.0227 -0.0000 -0.0227 +0.0114
+ scale  seed  predicted   actual  ratio
+  0.30     0         96      138   0.69
+  0.03     0       1093     1060   1.03
+  0.10     0        318      314   1.01
+  0.10     1        747      564   1.33
+  0.10     2        199      270   0.74
+  0.10     3        505      472   1.07
+  0.10     4       1287     1408   0.91
+  0.10     5        267      244   1.10
+  0.10     6        864     1158   0.75
+  0.01     0       3309     3249   1.02
+  0.01     1       7575     7487   1.01
+  0.01     2       2093     2159   0.97
+  0.01     3       5179     5084   1.02
+  0.01     4      13002    13144   0.99
+  0.01     5       2782     2738   1.02
+  0.01     6       8749     8970   0.98
+    scale 0.1: actual times span 244 to 1408; predicted/actual between 0.74 and 1.33
+    scale 0.01: actual times span 2159 to 13144; predicted/actual between 0.97 and 1.02
+
+=== adam: the same toy transformer trained with Adam (learning rate 0.01, full batch unless stated) ===
+  scale  loss < 0.95 at step  < 0.80 at step   P(xor) at XOR positions / elsewhere, at the peak elsewhere
+  0.300                   54             100   0.762 / 0.648
+  0.100                   56              92   0.744 / 0.616
+  0.030                   55              87   0.771 / 0.620
+  0.010                   54              82   0.791 / 0.631
+  0.001                   72             177   0.779 / 0.644
+    seven seeds at scale 0.1: loss < 0.95 at steps [56, 47, 53, 49, 56, 46, 56]
+    seven seeds at scale 0.01: loss < 0.95 at steps [54, 52, 68, 51, 57, 58, 1175]
+    batch size (sequences per step), scale 0.1, seeds 0 to 2: loss < 0.95 at steps
+       full: [56, 47, 53]
+         64: [63, 53, 63]
+         16: [78, 78, 86]
+          4: [150, 91, 115]
+          1: [200, 207, 203]
+
+=== order: random-start RRXOR, candidates ranked by the signal-to-noise ratio of their gradient, no prices ===
+    signal = correlation of the candidate's last column with the prediction error; noise = its per-token spread
+STAGE 1
+  loss 1.0000; 3738 candidates (single units and linked pairs); best by squared signal-to-noise per token:
+    0.1010   head[1 back; q=x; k=x; mean]
+    0.0841   head[all; q=x; k=x; min]  +  head[1 back; q=head[all; q=x; k=x; min]; k=head[all; q=x; k=x; min]; mean]
+    0.0841   head[1 back; q=x; k=x; mean]  +  head[all; q=head[1 back; q=x; k=x; mean]; k=x; min]
+    0.1010   the XOR head: 0 candidates score higher; gain 0.1515, about 5 factors by the rough count
+STAGE 2, holding XOR
+  loss 0.9257; 17415 candidates (single units and linked pairs); best by squared signal-to-noise per token:
+    0.0617   head[1 back; q=x; k=XOR; mean]  +  head[every 3 back from 2; q=XOR; k=head[1 back; q=x; k=XOR; mean]; max]
+    0.0501   head[every 3 back from 2; q=XOR; k=x; mean]  +  head[every 3 back from 2; q=XOR; k=head[every 3 back from 2; q=XOR; k=x; mean]; max]
+    0.0501   head[every 3 back from 1; q=x; k=XOR; mean]  +  head[every 3 back from 2; q=XOR; k=head[every 3 back from 1; q=x; k=XOR; mean]; max]
+    0.0617   the reported phase circuit (violation slot + XOR x OR of violations at 2, 5, 8 back): 0 candidates score higher; gain 0.0934, about 10 factors by the rough count
+    0.0114   the cheap trick (token two back): 105 candidates score higher; gain 0.0455, about 4 factors by the rough count
+  the rough count charges one weight per write, per column read, per position pattern and per sharp pool;
+  unit_race.py phase uses a leaner count (one write per use of a primitive, one read at the output)
+  by the rough count, under the multiplying law h_k(x0)/gain, the phase circuit comes before the trick only if x0 > 0.81
+
+=== shapes: the soft XOR of the toy transformer, as it is at the start and as it is once grown ===
+    gain of the clean shape, -x_t * x_(t-1) at every position: 0.1818
+    gain of [x_t = -1] * (mean of the attended tokens), a neuron switched by the current token alone: 0.0284, or 0.156 of the clean one
+    gains of the six neurons' shapes at the start, seed 0: -0.0000 +0.0057 +0.0227 -0.0000 -0.0227 +0.0114;  the largest is 0.125 of the clean one
+    the clean shape with one strength, fitted: strength 0.847, probability given to the XOR 0.700, loss 0.8921
+
+=== pool: every candidate for the next unit on random-start RRXOR, once the XOR is in ===
+    129 single units and 17286 linked pairs (the second unit reads the first); gain of the last unit's output
+    gain          exactly 0:   58 single units,   5233 pairs
+    gain from 1e-09 to 0.005:   48 single units,   7929 pairs
+    gain from 0.005 to 0.05:   23 single units,   4088 pairs
+    gain     from 0.05 to 1:    0 single units,     36 pairs
+    gain 0.0000   v alone (the token times e one back)
+    gain 0.0000   e times e one back
+    gain 0.0000   OR of e over every third position back
+    gain 0.0000   mean of e over all positions
+    gain 0.0455   the token two back (the trick)
+    gain 0.0000   v, then the OR of v every third back, alone (the flag)
+    gain 0.0934   v, then e times the OR of v every third back (the phase gate)
+    gain 0.0069   v, then e times the OR of v every second back
+    gain 0.0154   v, then e times the mean of v over all positions
+    gain 0.0133   v, then e times the OR of v over all positions
+

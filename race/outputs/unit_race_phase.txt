@@ -1,0 +1,89 @@
+=== the phase circuit of random-start RRXOR, from two primitives, raced in time ===
+    23 cells, 6 units; best linear readout of their shapes: 0.8260 bits per token
+    best linear readout of xor: 0.9258
+    best linear readout of xor + two back: 0.9164
+    best linear readout of xor + cancel 2: 0.8903
+    best linear readout of xor + cancel 2 + cancel 0 + cancel 1: 0.8584
+    (with all six the loss keeps falling slowly as the strength of sure grows; every run below stops 0.0005 above the value printed first)
+    each unit: time (flow) or step (Adam) at which its strength first reaches half its final value; loss at that moment
+  flow, x0 = 0.1, seed 0: ends at 5415 with loss 0.8265
+      xor at 20 (loss 0.9482, strength -0.60);  two back at 28 (loss 0.9259, strength -0.02);  cancel 2 at 4766 (loss 0.8959, strength +0.82);  cancel 0 at 5247 (loss 0.8815, strength -0.31);  cancel 1 at 5360 (loss 0.8579, strength -0.28);  sure at 5378 (loss 0.8309, strength -5.16)
+      two back: half of its largest strength at 65, largest -0.29 at 4711, final -0.02
+  flow, x0 = 0.1, seed 1: ends at 2403 with loss 0.8265
+      xor at 18 (loss 0.9434, strength -0.69);  two back at 159 (loss 0.9224, strength -0.11);  cancel 2 at 1687 (loss 0.8963, strength +0.78);  cancel 1 at 1814 (loss 0.8797, strength -0.25);  cancel 0 at 2341 (loss 0.8465, strength -0.14);  sure at 2357 (loss 0.8312, strength -5.77)
+      two back: half of its largest strength at 177, largest -0.31 at 2066, final -0.11
+  flow, x0 = 0.1, seed 2: ends at 3383 with loss 0.8265
+      xor at 10 (loss 0.9479, strength -0.62);  two back at 19 (loss 0.9249, strength -0.05);  cancel 2 at 3014 (loss 0.8948, strength +0.81);  cancel 1 at 3179 (loss 0.8792, strength -0.28);  cancel 0 at 3252 (loss 0.8645, strength -0.27);  sure at 3341 (loss 0.8318, strength -5.23)
+      two back: half of its largest strength at 40, largest -0.29 at 2956, final -0.05
+  flow, x0 = 0.5, seed 0: ends at 221 with loss 0.8265
+      two back at 0 (loss 1.0131, strength -0.09);  xor at 10 (loss 0.9420, strength -0.72);  cancel 2 at 164 (loss 0.8929, strength +0.77);  cancel 0 at 170 (loss 0.8788, strength -0.11);  sure at 192 (loss 0.8329, strength -5.59);  cancel 1 at 199 (loss 0.8287, strength -0.12)
+      two back: half of its largest strength at 19, largest -0.29 at 118, final -0.09
+  flow, x0 = 0.5, seed 1: ends at 161 with loss 0.8265
+      xor at 6 (loss 0.9501, strength -0.61);  cancel 2 at 42 (loss 0.9009, strength +0.81);  cancel 1 at 51 (loss 0.8858, strength -0.27);  two back at 103 (loss 0.8673, strength -0.03);  cancel 0 at 111 (loss 0.8533, strength -0.29);  sure at 127 (loss 0.8312, strength -5.08)
+      two back: half of its largest strength at 0, largest +0.07 at 0, final -0.03
+  flow, x0 = 0.5, seed 2: ends at 199 with loss 0.8265
+      xor at 0 (loss 0.9721, strength -0.60);  cancel 2 at 47 (loss 0.8932, strength +0.82);  cancel 0 at 57 (loss 0.8788, strength -0.30);  cancel 1 at 62 (loss 0.8763, strength -0.27);  sure at 162 (loss 0.8320, strength -5.15)
+      two back: half of its largest strength at 0, largest +0.41 at 0, final -0.01
+  Adam, x0 = 0.1, seed 0: ends at 132 with loss 0.8265
+      xor at 47 (loss 0.9448, strength -0.58);  cancel 0 at 60 (loss 0.9066, strength -0.34);  cancel 1 at 61 (loss 0.9035, strength -0.23);  cancel 2 at 78 (loss 0.8637, strength +0.82);  sure at 100 (loss 0.8329, strength -5.37)
+      two back: half of its largest strength at 49, largest -0.21 at 77, final -0.00
+  Adam, x0 = 0.1, seed 1: ends at 139 with loss 0.8265
+      xor at 45 (loss 0.9417, strength -0.57);  cancel 1 at 55 (loss 0.9065, strength -0.28);  cancel 0 at 56 (loss 0.9024, strength -0.33);  cancel 2 at 66 (loss 0.8686, strength +0.80);  sure at 105 (loss 0.8310, strength -5.42)
+      two back: half of its largest strength at 45, largest -0.20 at 70, final -0.00
+  Adam, x0 = 0.1, seed 2: ends at 133 with loss 0.8265
+      xor at 36 (loss 0.9450, strength -0.58);  cancel 1 at 51 (loss 0.9035, strength -0.27);  cancel 0 at 52 (loss 0.9001, strength -0.32);  cancel 2 at 61 (loss 0.8711, strength +0.81);  sure at 104 (loss 0.8313, strength -5.27)
+      two back: half of its largest strength at 35, largest -0.18 at 62, final -0.00
+  Adam, x0 = 0.5, seed 0: ends at 141 with loss 0.8265
+      cancel 0 at 47 (loss 0.9081, strength -0.39);  xor at 49 (loss 0.8953, strength -0.54);  cancel 1 at 51 (loss 0.8833, strength -0.28);  sure at 94 (loss 0.8380, strength -9.42);  cancel 2 at 100 (loss 0.8329, strength +0.78)
+      two back: half of its largest strength at 0, largest -0.13 at 0, final +0.01
+  Adam, x0 = 0.5, seed 1: ends at 149 with loss 0.8265
+      two back at 0 (loss 1.0102, strength +0.02);  cancel 1 at 33 (loss 0.9369, strength -0.26);  cancel 0 at 40 (loss 0.8990, strength -0.37);  xor at 40 (loss 0.8990, strength -0.54);  cancel 2 at 43 (loss 0.8807, strength +0.80);  sure at 93 (loss 0.8308, strength -6.01)
+      two back: half of its largest strength at 0, largest +0.07 at 0, final +0.02
+  Adam, x0 = 0.5, seed 2: ends at 111 with loss 0.8265
+      xor at 0 (loss 0.9721, strength -0.60);  cancel 0 at 22 (loss 0.9080, strength -0.29);  cancel 1 at 25 (loss 0.8987, strength -0.26);  cancel 2 at 30 (loss 0.8823, strength +0.81);  sure at 92 (loss 0.8319, strength -5.15)
+      two back: half of its largest strength at 0, largest +0.41 at 0, final -0.01
+
+  one run in detail: gradient flow, x0 = 0.1, seed 1; strength of each unit,
+  then the sizes of the four weights of cancel 2 that start small (b, c2, f2, rho2)
+    time    loss        xor  two back  cancel 2  cancel 0  cancel 1      sure          b     c2     f2   rho2
+       3  0.9984     -0.008    +0.003    -0.000    -0.000    +0.000    +0.000      0.145  0.109  0.144  0.006
+      11  0.9850     -0.072    +0.003    -0.000    -0.000    +0.000    +0.000      0.145  0.109  0.144  0.006
+      22  0.9294     -0.537    +0.002    -0.000    -0.000    +0.000    +0.000      0.145  0.109  0.144  0.006
+      40  0.9257     -0.692    +0.000    -0.000    -0.000    -0.000    +0.000      0.145  0.109  0.144  0.005
+      70  0.9257     -0.693    +0.000    -0.000    -0.000    -0.000    +0.000      0.145  0.109  0.144  0.003
+     117  0.9256     -0.693    -0.002    +0.000    -0.000    -0.000    +0.000      0.145  0.109  0.144  0.001
+     192  0.9167     -0.766    -0.234    +0.000    -0.000    -0.000    +0.000      0.145  0.109  0.144  0.006
+     313  0.9164     -0.791    -0.288    +0.000    -0.000    -0.000    +0.000      0.146  0.110  0.144  0.016
+     508  0.9165     -0.809    -0.285    +0.000    -0.000    -0.000    +0.000      0.149  0.114  0.147  0.032
+     824  0.9164     -0.808    -0.285    +0.000    -0.000    -0.000    +0.000      0.159  0.125  0.156  0.062
+    1327  0.9164     -0.807    -0.285    +0.001    -0.000    -0.000    +0.000      0.209  0.181  0.204  0.145
+    1403  0.9164     -0.807    -0.286    +0.001    -0.000    -0.000    +0.000      0.228  0.201  0.221  0.169
+    1468  0.9163     -0.807    -0.286    +0.002    -0.000    -0.000    +0.000      0.249  0.224  0.243  0.196
+    1532  0.9162     -0.808    -0.286    +0.004    -0.000    -0.000    +0.000      0.282  0.259  0.275  0.235
+    1596  0.9158     -0.798    -0.288    +0.010    -0.000    -0.000    +0.000      0.339  0.318  0.332  0.299
+    1657  0.9135     -0.813    -0.288    +0.048    -0.000    -0.000    +0.000      0.474  0.459  0.468  0.445
+    1718  0.8850     -1.108    -0.225    +0.996    -0.000    -0.004    +0.000      0.848  0.835  0.840  0.828
+    1779  0.8842     -1.102    -0.218    +1.004    -0.000    -0.022    +0.000      0.862  0.828  0.834  0.821
+    1841  0.8687     -0.946    -0.264    +1.058    -0.000    -0.619    +0.000      1.000  0.766  0.772  0.759
+    1901  0.8678     -0.878    -0.309    +1.019    +0.000    -0.783    -0.000      1.019  0.750  0.756  0.742
+    1962  0.8678     -0.871    -0.311    +1.027    +0.000    -0.778    -0.000      1.019  0.752  0.758  0.744
+    2023  0.8678     -0.871    -0.311    +1.027    +0.000    -0.778    -0.000      1.019  0.752  0.758  0.744
+    2085  0.8678     -0.878    -0.310    +1.020    +0.000    -0.783    -0.000      1.019  0.750  0.756  0.742
+    2146  0.8677     -0.880    -0.310    +1.017    -0.000    -0.785    -0.001      1.020  0.749  0.755  0.741
+    2207  0.8677     -0.880    -0.310    +1.017    -0.000    -0.785    -0.003      1.022  0.748  0.754  0.740
+    2268  0.8673     -0.878    -0.309    +1.018    -0.002    -0.785    -0.014      1.031  0.744  0.750  0.736
+    2328  0.8607     -0.856    -0.298    +1.026    -0.027    -0.782    -0.259      1.107  0.714  0.720  0.706
+    2389  0.8268     -0.690    -0.131    +0.790    -0.140    -0.285    -5.258      1.353  0.574  0.582  0.564
+    2403  0.8265     -0.689    -0.114    +0.780    -0.142    -0.254    -5.772      1.364  0.568  0.576  0.558
+
+  one run in detail: Adam, x0 = 0.1, seed 1; strength of each unit,
+  then the sizes of the four weights of cancel 2 that start small (b, c2, f2, rho2)
+    step    loss        xor  two back  cancel 2  cancel 0  cancel 1      sure          b     c2     f2   rho2
+       7  0.9984     -0.007    +0.000    +0.000    -0.000    -0.000    +0.000      0.190  0.109  0.143  0.005
+      17  0.9921     -0.037    -0.000    +0.000    -0.000    -0.000    -0.000      0.282  0.150  0.182  0.079
+      30  0.9755     -0.119    -0.017    +0.001    -0.002    -0.003    -0.000      0.427  0.281  0.312  0.215
+      46  0.9387     -0.303    -0.103    +0.026    -0.040    -0.045    -0.005      0.651  0.494  0.524  0.430
+      66  0.8686     -0.612    -0.188    +0.404    -0.496    -0.559    -0.294      0.987  0.825  0.855  0.762
+      91  0.8383     -0.617    -0.027    +1.123    -0.485    -0.626    -1.578      1.177  1.048  1.077  0.985
+     122  0.8274     -0.567    -0.009    +0.877    -0.380    -0.336    -4.281      1.271  0.952  0.981  0.891
+     139  0.8265     -0.573    -0.004    +0.801    -0.328    -0.281    -5.417      1.294  0.915  0.944  0.854

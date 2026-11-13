@@ -1,0 +1,13 @@
+=== rate: one-layer transformer, aligned RRXOR, Adam with exact gradients, at five learning rates ===
+    step at which the loss first falls under 0.95, seeds 0-2
+  initial std 0.05, learning rate 0.002: [38, 37, 36]   step x rate: 0.076, 0.074, 0.072
+  initial std 0.05, learning rate 0.001: [59, 57, 57]   step x rate: 0.059, 0.057, 0.057
+  initial std 0.05, learning rate 0.0005: [95, 92, 91]   step x rate: 0.048, 0.046, 0.045
+  initial std 0.05, learning rate 0.00025: [156, 150, 150]   step x rate: 0.039, 0.037, 0.037
+  initial std 0.05, learning rate 0.000125: [262, 259, 260]   step x rate: 0.033, 0.032, 0.033
+  initial std 0.025, learning rate 0.002: [43, 43, 44]   step x rate: 0.086, 0.086, 0.088
+  initial std 0.025, learning rate 0.001: [67, 66, 65]   step x rate: 0.067, 0.066, 0.065
+  initial std 0.025, learning rate 0.0005: [108, 102, 99]   step x rate: 0.054, 0.051, 0.050
+  initial std 0.025, learning rate 0.00025: [172, 161, 159]   step x rate: 0.043, 0.040, 0.040
+  initial std 0.025, learning rate 0.000125: [299, 270, 272]   step x rate: 0.037, 0.034, 0.034
+    (24 s)

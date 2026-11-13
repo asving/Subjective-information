@@ -1,0 +1,15 @@
+=== phase: four-layer transformer (width 64, 4 heads, layer norm), random-start RRXOR, exact gradients ===
+    step at which the loss first passes 0.97 (XOR appearing), 0.91 (under the XOR-only level 0.926),
+    0.88 (under XOR plus the phase bundle) and 0.84 (near the optimum 0.8234)
+  Adam, learning rate 0.001, initial std 0.02, seed 0: {0.97: 37, 0.91: 90, 0.88: 129, 0.84: 261}   lowest loss 0.8398
+  Adam, learning rate 0.001, initial std 0.02, seed 1: {0.97: 90, 0.91: 226, 0.88: 297, 0.84: 428}   lowest loss 0.8396
+  Adam, learning rate 0.001, initial std 0.02, seed 2: {0.97: 58, 0.91: 160, 0.88: 227, 0.84: 466}   lowest loss 0.8398
+  plain SGD, learning rate 0.3, initial std 0.02, seed 0, 6000 steps: {}   lowest loss 1.0000
+  plain SGD, learning rate 1.0, initial std 0.02, seed 0, 6000 steps: {'diverged': 12}   lowest loss 1.0043
+  plain SGD, learning rate 0.1, initial std 0.1, seed 0, 8000 steps: {0.97: 199, 0.91: 618, 0.88: 1104, 0.84: 2398}   lowest loss 0.8399
+  plain SGD, learning rate 0.3, initial std 0.1, seed 0, 8000 steps: {0.97: 798, 0.91: 5372}   lowest loss 0.8838
+  Adam, learning rate 0.001, initial std 0.1, seed 0: {0.97: 96, 0.91: 195, 0.88: 278, 0.84: 420}   lowest loss 0.8399
+  plain SGD, learning rate 0.1, initial std 0.2, seed 0, 8000 steps: {0.97: 131, 0.91: 710, 0.88: 1174, 0.84: 2461}   lowest loss 0.8395
+  plain SGD, learning rate 0.3, initial std 0.2, seed 0, 8000 steps: {0.97: 206, 0.91: 1594, 0.88: 2172, 0.84: 2897}   lowest loss 0.8398
+  Adam, learning rate 0.001, initial std 0.2, seed 0: {0.97: 70, 0.91: 203, 0.88: 265, 0.84: 368}   lowest loss 0.8398
+    (5267 s)

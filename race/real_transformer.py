@@ -136,12 +136,12 @@ def random_start():
 
 
 class Block(nn.Module):
-    def __init__(self, d, h):
+    def __init__(self, d, h, norm=True):
         super().__init__()
         self.h = h
         self.qkv, self.proj = nn.Linear(d, 3 * d), nn.Linear(d, d)
         self.fc, self.out = nn.Linear(d, 4 * d), nn.Linear(4 * d, d)
-        self.n1, self.n2 = nn.LayerNorm(d), nn.LayerNorm(d)
+        self.n1, self.n2 = (nn.LayerNorm(d), nn.LayerNorm(d)) if norm else (nn.Identity(), nn.Identity())
 
     def forward(self, x):
         B, T, d = x.shape
@@ -152,11 +152,12 @@ class Block(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, d=64, h=4, layers=4, std=0.02):
+    def __init__(self, d=64, h=4, layers=4, std=0.02, norm=True):
+        """norm=False removes every layer norm; no part of the note uses that yet."""
         super().__init__()
         self.tok, self.pos = nn.Embedding(2, d), nn.Embedding(L, d)
-        self.blocks = nn.ModuleList(Block(d, h) for _ in range(layers))
-        self.nf, self.un = nn.LayerNorm(d), nn.Linear(d, 2)
+        self.blocks = nn.ModuleList(Block(d, h, norm) for _ in range(layers))
+        self.nf, self.un = (nn.LayerNorm(d) if norm else nn.Identity()), nn.Linear(d, 2)
         for m in self.modules():
             if isinstance(m, (nn.Linear, nn.Embedding)):
                 nn.init.normal_(m.weight, 0, std)

@@ -1,0 +1,57 @@
+=== one run, initial scale 0.1 ===
+    time    loss  P(xor) at XOR pos  at other pos  attn 1 back  |omega|  mean|r|  gate contrast
+       0  1.0015              0.500         0.500        0.227    0.007    0.081         -0.009
+       0  1.0014              0.500         0.500        0.227    0.006    0.081         -0.009
+       1  1.0013              0.500         0.500        0.227    0.006    0.081         -0.009
+       2  1.0012              0.500         0.500        0.227    0.005    0.081         -0.009
+       2  1.0011              0.500         0.500        0.227    0.005    0.081         -0.009
+       2  1.0011              0.500         0.500        0.227    0.004    0.081         -0.009
+       4  1.0010              0.500         0.500        0.227    0.003    0.081         -0.008
+       5  1.0009              0.500         0.500        0.227    0.002    0.081         -0.008
+       7  1.0008              0.500         0.500        0.227    0.000    0.081         -0.008
+      10  1.0007              0.500         0.500        0.227    0.003    0.081         -0.008
+      14  1.0005              0.500         0.500        0.227    0.008    0.080         -0.009
+      21  1.0004              0.500         0.500        0.227    0.014    0.079         -0.009
+      30  1.0002              0.500         0.500        0.227    0.023    0.079         -0.010
+      44  1.0001              0.500         0.500        0.227    0.036    0.078         -0.010
+      63  1.0000              0.500         0.500        0.227    0.055    0.078         -0.011
+      91  0.9999              0.500         0.501        0.228    0.084    0.080         -0.012
+     132  0.9998              0.500         0.501        0.229    0.129    0.084         -0.013
+     190  0.9994              0.501         0.501        0.232    0.218    0.099         -0.014
+     276  0.9926              0.507         0.505        0.256    0.550    0.169         -0.014
+     400  0.8682              0.720         0.675        0.530    1.373    0.552          0.093
+     580  0.7766              0.832         0.634        0.578    1.390    1.083          0.426
+     841  0.7081              0.921         0.570        0.585    1.550    1.809          0.602
+    1219  0.6789              0.968         0.546        0.754    1.227    2.250          0.846
+    1768  0.6555              0.986         0.487        0.894    1.114    2.429          1.077
+    2562  0.6458              0.994         0.488        0.936    1.035    2.591          1.249
+
+=== initial scale: how long is the plateau? ===
+ scale  soft XOR at  scale x time  then gating after   soft stage: P(xor) at XOR positions / elsewhere, loss
+  0.30          138          41.5                222   0.724 / 0.672, 0.8665
+  0.10          314          31.4                220   0.718 / 0.676, 0.8700
+  0.03         1060          31.8                287   0.719 / 0.680, 0.8721
+  0.01         3249          32.5                366   0.716 / 0.681, 0.8733
+
+=== is the plateau a product of three weights? (initial scale 0.03) ===
+   s = (|r_j v_j omega|)^(1/3) for the leading neuron; ds/dt proportional to s^2 means 1/s falls linearly
+   time      0   1/s =  54.81
+   time    125   1/s =  32.65
+   time    250   1/s =  24.03
+   time    375   1/s =  19.23
+   time    500   1/s =  15.49
+   time    625   1/s =  12.17
+   time    750   1/s =   9.04
+   time    875   1/s =   5.99
+   time   1000   1/s =   2.57
+
+=== seeds at initial scale 0.1 ===
+   seed 0: soft XOR at    314, gating  220 later; soft stage P(xor) 0.718 / 0.676
+   seed 1: soft XOR at    564, gating  149 later; soft stage P(xor) 0.726 / 0.671
+   seed 2: soft XOR at    270, gating  188 later; soft stage P(xor) 0.734 / 0.665
+   seed 3: soft XOR at    472, gating  128 later; soft stage P(xor) 0.707 / 0.664
+   seed 4: soft XOR at   1408, gating  114 later; soft stage P(xor) 0.717 / 0.662
+   seed 5: soft XOR at    244, gating  158 later; soft stage P(xor) 0.716 / 0.670
+   seed 6: soft XOR at   1158, gating  140 later; soft stage P(xor) 0.725 / 0.678
+   time to soft XOR: mean 633, standard deviation / mean = 0.73
+   soft XOR to gating: mean 157, standard deviation / mean = 0.23

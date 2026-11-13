@@ -1,0 +1,55 @@
+=== plateau: one monomial z1...zL, exact gradients, plain gradient descent ===
+    actual = time (steps x learning rate) at which the loss is 5% under that of predicting zero
+    bare = the (L+1)-factor equations alone; full = the same with the pull-back from the network's own output
+    first-layer weights start at the scale shown, output weights at 0.01; nothing is fitted
+  d  neurons   L  scale  seed   actual  bare/actual  full/actual
+ 10       16   2   0.10     0      275         0.80         1.05
+ 10       16   2   0.10     1      189         0.86         1.02
+ 10       16   2   0.10     2      283         0.76         1.02
+ 10       16   3   0.10     0      892         0.59         0.98
+ 10       16   3   0.10     1      560         0.60         0.96
+ 10       16   3   0.10     2     1979         0.79         1.00
+ 10       16   4   0.10     0    14512         0.31         1.02
+ 10       16   4   0.10     1    11389         0.27         0.93
+ 10       16   4   0.10     2    16901         0.60         0.95
+  8       64   2   0.10     0      154         0.86         1.02
+  8       64   2   0.10     1       89         0.89         1.01
+  8       64   2   0.10     2      123         0.91         1.00
+  8       64   3   0.10     0      450         0.83         0.95
+  8       64   3   0.10     1      376         0.80         0.94
+  8       64   3   0.10     2      671         0.86         0.96
+  8       64   4   0.10     0     2957         0.69         0.88
+  8       64   4   0.10     1     3527         0.64         0.86
+  8       64   4   0.10     2     5286         0.67         0.91
+    16 neurons, L = 2: bare/actual 0.76 to 0.86; full/actual 1.02 to 1.05
+    16 neurons, L = 3: bare/actual 0.59 to 0.79; full/actual 0.96 to 1.00
+    16 neurons, L = 4: bare/actual 0.27 to 0.60; full/actual 0.93 to 1.02
+    64 neurons, L = 2: bare/actual 0.86 to 0.91; full/actual 1.00 to 1.02
+    64 neurons, L = 3: bare/actual 0.80 to 0.86; full/actual 0.94 to 0.96
+    64 neurons, L = 4: bare/actual 0.64 to 0.69; full/actual 0.86 to 0.91
+
+    Adam (learning rate 0.01), d = 10, 16 neurons: steps until the loss is 5% under that of predicting zero, seeds 0 to 2
+  L            scale 0.3            scale 0.1           scale 0.03           scale 0.01
+  2         [34, 29, 34]         [40, 39, 40]         [42, 43, 42]         [42, 45, 43]
+  3         [37, 38, 42]         [46, 50, 49]         [51, 57, 54]         [58, 71, 67]
+  4         [52, 54, 58]         [69, 78, 82]      [194, 233, 146]      [250, 287, 178]
+    (61 s)
+
+=== staircase: d = 10, 32 neurons, first-layer weights start at 0.1, output weights at 0.01, exact gradients ===
+    time (steps x learning rate) at which the network's coefficient on each monomial first passes 1/2
+  plain gradient descent, learning rate 0.1
+    z1 + z1 z2 + z1 z2 z3    seed 0: z1 at 9.5, z1 z2 at 54.0, z1 z2 z3 at 56.5
+    z1 + z1 z2 + z1 z2 z3    seed 1: z1 at 10.0, z1 z2 at 61.5, z1 z2 z3 at 64.0
+    z1 + z1 z2 + z1 z2 z3    seed 2: z1 at 9.0, z1 z2 at 63.0, z1 z2 z3 at 66.0
+    z1 z2 z3 alone           seed 0: z1 z2 z3 at 722.5
+    z1 z2 z3 alone           seed 1: z1 z2 z3 at 558.5
+    z1 z2 z3 alone           seed 2: z1 z2 z3 at 854.0
+  Adam, learning rate 0.01
+    z1 + z1 z2 + z1 z2 z3    seed 0: z1 at 0.2, z1 z2 at 1.2, z1 z2 z3 at 1.2
+    z1 + z1 z2 + z1 z2 z3    seed 1: z1 at 0.2, z1 z2 at 1.2, z1 z2 z3 at 1.2
+    z1 + z1 z2 + z1 z2 z3    seed 2: z1 at 0.2, z1 z2 at 1.2, z1 z2 z3 at 1.2
+    z1 z2 z3 alone           seed 0: z1 z2 z3 at 0.8
+    z1 z2 z3 alone           seed 1: z1 z2 z3 at 0.8
+    z1 z2 z3 alone           seed 2: z1 z2 z3 at 0.8
+    (5 s)
+
